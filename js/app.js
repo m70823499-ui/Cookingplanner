@@ -36,6 +36,15 @@
     { label: '30 min', min: 30 },
     { label: '45 min', min: 45 }
   ];
+  // Optional per-session meal type ('' = any).
+  var MEAL_OPTIONS = [
+    { label: 'Cualquiera', value: '', icon: 'sparkles' },
+    { label: 'Desayuno', value: 'desayuno', icon: 'egg' },
+    { label: 'Almuerzo', value: 'almuerzo', icon: 'utensils' },
+    { label: 'Cena', value: 'cena', icon: 'utensils' },
+    { label: 'Snack', value: 'snack', icon: 'cookie' },
+    { label: 'Postre', value: 'postre', icon: 'candy' }
+  ];
   var MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   var PREFS_KEY = 'cookingPlanner.prefs.v1';
@@ -135,6 +144,7 @@
     saved: [],                // recipes saved for later (separate from cooking history)
     recipeSource: 'fresh',    // 'fresh' | 'history' | 'saved' — where the shown recipe came from
     craving: '',              // optional per-session "I want something specific" request
+    mealType: '',             // optional per-session meal type ('' = any)
     timeLimit: null,          // optional per-session available minutes (null = no limit)
     justCopied: false,        // transient "ingredients copied" feedback
     statsMonth: '',           // 'YYYY-MM' currently shown in the monthly stats
@@ -171,8 +181,9 @@
   }
   function openEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'editPrefs', onboardingError: false }); }
   function cancelEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'home', onboardingError: false }); }
-  function goHome() { setState({ view: 'home', craving: '', timeLimit: null }); }
+  function goHome() { setState({ view: 'home', craving: '', timeLimit: null, mealType: '' }); }
   function setTimeLimit(min) { setState({ timeLimit: min > 0 ? min : null }); }
+  function setMeal(v) { setState({ mealType: v || '' }); }
   function goGlosario() { setState({ view: 'glosario', glosarioFrom: (state.view === 'glosario' ? (state.glosarioFrom || 'home') : state.view) }); }
   function leaveGlosario() { setState({ view: state.glosarioFrom || 'home' }); }
   function goHistory() { setState({ view: 'history' }); }
@@ -207,6 +218,9 @@
     }
     if (state.timeLimit) {
       lines.push('Tiempo disponible: el usuario dispone de unos ' + state.timeLimit + ' minutos en total (preparación + cocción). La receta DEBE caber en ese tiempo y el campo timeMinutes debe ser menor o igual a ' + state.timeLimit + '.');
+    }
+    if (state.mealType) {
+      lines.push('Tipo de plato: el usuario quiere un ' + state.mealType + '. La receta debe ser apropiada para ' + state.mealType + ' (respetando siempre picante, fruta y nivel de habilidad).');
     }
     lines.push('CALIDAD DE LOS PASOS (lo más importante): la persona es principiante y debe poder cocinar el plato SIN conocimientos previos. Cada "description" tiene que ser clara, completa y autocontenida:');
     lines.push('- Explica CÓMO se hace cada acción, no solo qué hacer. Ejemplos: cómo cortar (forma y tamaño concreto, p. ej. "corta la cebolla en cubos pequeños de ~0,5 cm"); a qué fuego (bajo/medio/alto); cuánto tiempo aproximado; y qué señal buscar (p. ej. "sofríe a fuego medio 5–7 min hasta que esté transparente y suelte aroma, sin que se dore").');
@@ -273,7 +287,7 @@
     };
     var nextHistory = [entry].concat(state.history);
     persistHistory(nextHistory);
-    setState({ history: nextHistory, logOpen: false, view: 'home', craving: '', timeLimit: null });
+    setState({ history: nextHistory, logOpen: false, view: 'home', craving: '', timeLimit: null, mealType: '' });
   }
 
   // Delete a cooked entry from history (behind a confirmation).
@@ -424,6 +438,7 @@
     'cancel-confirm': cancelConfirm,
     'confirm-delete': doConfirmedDelete,
     'set-time': function (el) { setTimeLimit(Number(el.getAttribute('data-min')) || 0); },
+    'set-meal': function (el) { setMeal(el.getAttribute('data-val') || ''); },
     'copy-ingredients': copyIngredients,
     'stats-prev': statsPrev,
     'stats-next': statsNext,
@@ -555,6 +570,20 @@
       '<p class="cp-hero-sub">Genera recetas ajustadas a tus gustos, cocínalas con pasos claros y timers, y lleva tu historial — sin límites de un plan pago.</p>' +
       '</div>';
 
+    function chipRow(prompt, chipsHtml) {
+      return '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;">' +
+        '<span style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);width:100%;margin-bottom:2px;">' + prompt + '</span>' +
+        chipsHtml + '</div>';
+    }
+    var mealChips = MEAL_OPTIONS.map(function (o) {
+      var selected = (o.value === '') ? !state.mealType : (state.mealType === o.value);
+      return tag({ label: o.label, icon: o.icon, selected: selected, action: 'set-meal', data: { val: o.value } });
+    }).join('');
+    var timeChips = TIME_OPTIONS.map(function (o) {
+      var selected = (o.min === 0) ? (state.timeLimit == null) : (state.timeLimit === o.min);
+      return tag({ label: o.label, icon: o.min === 0 ? 'sparkles' : 'clock', selected: selected, action: 'set-time', data: { min: o.min } });
+    }).join('');
+
     var genCard =
       '<div style="max-width:470px;margin:0 auto 44px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-card);padding:22px 22px 24px;">' +
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' + icon('sparkles', 18, 'var(--accent-primary)') + '<span class="cp-eyebrow">Genera una receta</span></div>' +
@@ -562,13 +591,8 @@
           icon('sparkles', 16, 'var(--text-muted)') +
           '<input data-craving type="text" autocomplete="off" placeholder="¿Se te antoja algo en específico? (opcional)" value="' + esc(state.craving || '') + '" style="border:none;outline:none;background:transparent;flex:1;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-primary);" />' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;">' +
-          '<span style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);width:100%;margin-bottom:2px;">¿Cuánto tiempo tienes?</span>' +
-          TIME_OPTIONS.map(function (o) {
-            var selected = (o.min === 0) ? (state.timeLimit == null) : (state.timeLimit === o.min);
-            return tag({ label: o.label, icon: o.min === 0 ? 'sparkles' : 'clock', selected: selected, action: 'set-time', data: { min: o.min } });
-          }).join('') +
-        '</div>' +
+        chipRow('¿Qué tipo de plato?', mealChips) +
+        chipRow('¿Cuánto tiempo tienes?', timeChips) +
         button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;margin-top:20px;' }) +
         '<div style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);margin-top:10px;text-align:center;">Déjalo vacío y te recomiendo según tus gustos.</div>' +
       '</div>';
@@ -588,7 +612,7 @@
       '</div>';
 
     return '<div class="cp-fade" style="max-width:820px;margin:0 auto;padding:16px 28px 60px;">' +
-      hero + genCard + benefits + pills + '</div>';
+      hero + benefits + genCard + pills + '</div>';
   }
 
   function recipeView() {
