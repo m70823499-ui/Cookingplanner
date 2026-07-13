@@ -1,0 +1,5 @@
+# server.js es solo el servidor de desarrollo local (usa .listen()).
+# En Vercel NO debe usarse como entrypoint: el sitio se sirve como estático
+# y la generación va por api/generate.js (función serverless). Excluirlo evita
+# que Vercel lo detecte como "servidor Node" y muestre la página por defecto.
+server.js
