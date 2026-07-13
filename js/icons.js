@@ -44,5 +44,7 @@ window.CP_ICONS = {
   'chevron-left': '<path d="M15 18 9 12l6-6"/>',
   'chevron-right': '<path d="M9 6l6 6-6 6"/>',
   'user': '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/>',
-  'sparkles': '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>'
+  'sparkles': '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
+  'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  'ruler': '<path d="M3 8.5 8.5 3 21 15.5 15.5 21z"/><path d="M7.5 7.5 9 9M10 5l1.5 1.5M12.5 9.5 14 11M15 7l1.5 1.5"/>'
 };

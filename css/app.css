@@ -198,11 +198,20 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
   align-items: center;
   gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 .cp-brand__name {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* On small phones, drop the wordmark so the action icons always fit. */
+@media (max-width: 430px) {
+  .cp-brand__name { display: none; }
+  .cp-topbar { gap: 8px; }
 }
 
 .cp-eyebrow {
@@ -329,6 +338,12 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
   font-weight: 700;
   font-size: var(--text-sm);
 }
+.cp-pill--btn {
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+  transition: background var(--duration-base) var(--ease-standard);
+}
+.cp-pill--btn:hover { background: var(--border-subtle); }
 
 /* Step list */
 .cp-step { display: flex; gap: 16px; }

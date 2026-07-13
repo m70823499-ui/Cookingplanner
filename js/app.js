@@ -137,7 +137,8 @@
     timeLimit: null,          // optional per-session available minutes (null = no limit)
     justCopied: false,        // transient "ingredients copied" feedback
     statsMonth: '',           // 'YYYY-MM' currently shown in the monthly stats
-    confirmDelete: null       // { type: 'history', idx } while a delete confirmation is open
+    confirmDelete: null,      // { type: 'history', idx } while a delete confirmation is open
+    glosarioFrom: 'home'      // view to return to when leaving "Básicos de cocina"
   };
 
   function setState(partial) { Object.assign(state, partial); render(); }
@@ -171,6 +172,8 @@
   function cancelEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'home', onboardingError: false }); }
   function goHome() { setState({ view: 'home', craving: '', timeLimit: null }); }
   function setTimeLimit(min) { setState({ timeLimit: min > 0 ? min : null }); }
+  function goGlosario() { setState({ view: 'glosario', glosarioFrom: (state.view === 'glosario' ? (state.glosarioFrom || 'home') : state.view) }); }
+  function leaveGlosario() { setState({ view: state.glosarioFrom || 'home' }); }
   function goHistory() { setState({ view: 'history' }); }
 
   // ------------------------- recipe generation -------------------------
@@ -422,7 +425,9 @@
     'set-time': function (el) { setTimeLimit(Number(el.getAttribute('data-min')) || 0); },
     'copy-ingredients': copyIngredients,
     'stats-prev': statsPrev,
-    'stats-next': statsNext
+    'stats-next': statsNext,
+    'go-glosario': goGlosario,
+    'glosario-back': leaveGlosario
   };
 
   function onClick(e) {
@@ -455,15 +460,17 @@
 
   // ------------------------- views -------------------------
   function topBar(view) {
-    var isHome = view === 'home', isRecipe = view === 'recipe', isHistory = view === 'history', isEditPrefs = view === 'editPrefs', isSaved = view === 'saved';
-    if (!(isHome || isRecipe || isHistory || isEditPrefs || isSaved)) return '';
+    var isHome = view === 'home', isRecipe = view === 'recipe', isHistory = view === 'history', isEditPrefs = view === 'editPrefs', isSaved = view === 'saved', isGlosario = view === 'glosario';
+    if (!(isHome || isRecipe || isHistory || isEditPrefs || isSaved || isGlosario)) return '';
     var backAction = 'go-home';
-    if (isRecipe && state.recipeSource === 'history') backAction = 'go-history';
+    if (isGlosario) backAction = 'glosario-back';
+    else if (isRecipe && state.recipeSource === 'history') backAction = 'go-history';
     else if (isRecipe && state.recipeSource === 'saved') backAction = 'go-saved';
     return '<div class="cp-topbar">' +
       iconButton({ name: 'arrow-left', label: 'Volver', action: backAction, hidden: isHome }) +
       '<div class="cp-brand">' + icon('chef-hat', 20, 'var(--accent-primary)') +
       '<span class="cp-brand__name">Cooking Planner</span></div>' +
+      iconButton({ name: 'book-open', label: 'Básicos de cocina', active: isGlosario, action: 'go-glosario' }) +
       iconButton({ name: 'bookmark', label: 'Guardadas', active: isSaved, action: 'go-saved' }) +
       iconButton({ name: 'list', label: 'Historial', active: isHistory, action: 'go-history' }) +
       iconButton({ name: 'settings', label: 'Preferencias', active: isEditPrefs, action: 'open-prefs' }) +
@@ -553,7 +560,9 @@
       '</div>' +
       button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;max-width:360px;margin:0 auto;' }) +
       '<div style="display:flex;gap:10px;justify-content:center;margin-top:32px;flex-wrap:wrap;">' +
-      '<div class="cp-pill">' + icon('list', 15, 'var(--accent-secondary)') + '<span>' + esc(label) + '</span></div></div>' +
+      '<div class="cp-pill">' + icon('list', 15, 'var(--accent-secondary)') + '<span>' + esc(label) + '</span></div>' +
+      '<div class="cp-pill cp-pill--btn" data-action="go-glosario">' + icon('book-open', 15, 'var(--accent-primary)') + '<span>Básicos de cocina</span></div>' +
+      '</div>' +
       '</div>';
   }
 
@@ -656,9 +665,13 @@
     }).join('');
     var steps = stepsHeader + '<div style="margin-bottom:20px;">' + stepsHtml + '</div>';
 
-    var technique = '<a href="' + esc(techniqueURL(r)) + '" target="_blank" rel="noopener" class="cp-btn cp-btn--secondary cp-btn--md" style="text-decoration:none;margin-bottom:32px;">' +
+    var technique = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:32px;">' +
+      '<a href="' + esc(techniqueURL(r)) + '" target="_blank" rel="noopener" class="cp-btn cp-btn--secondary cp-btn--md" style="text-decoration:none;">' +
       icon('search', 17, 'currentColor') +
-      '<span>Ver la técnica en YouTube' + (r.technique ? ': ' + esc(r.technique) : '') + '</span></a>';
+      '<span>Ver la técnica en YouTube' + (r.technique ? ': ' + esc(r.technique) : '') + '</span></a>' +
+      '<button class="cp-linkbtn" data-action="go-glosario" style="display:inline-flex;align-items:center;gap:6px;">' +
+      icon('book-open', 15, 'currentColor') + '<span>¿Dudas con medidas o cortes? Ver básicos</span></button>' +
+      '</div>';
 
     var actionBar;
     if (state.recipeSource === 'history') {
@@ -789,6 +802,135 @@
       searchBox + body + '</div>';
   }
 
+  // ------------------------- Básicos de cocina (glosario) -------------------------
+  function glosarioView() {
+    // Small building blocks kept local to this view.
+    var secHeader = function (ic, title) {
+      return '<div style="display:flex;align-items:center;gap:8px;margin:30px 0 12px;">' +
+        icon(ic, 18, 'var(--accent-primary)') + '<h3 style="font-size:var(--text-xl);margin:0;">' + title + '</h3></div>';
+    };
+    var surface = function (inner) {
+      return '<div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:6px 16px;">' + inner + '</div>';
+    };
+    var valueCards = function (items) {
+      return '<div style="display:flex;gap:10px;flex-wrap:wrap;">' + items.map(function (it) {
+        return '<div style="flex:1 1 130px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:12px 14px;">' +
+          '<div style="font-family:var(--font-display);font-weight:700;font-size:var(--text-lg);color:var(--text-primary);">' + it.v + '</div>' +
+          '<div style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);margin-top:2px;">' + it.l + '</div></div>';
+      }).join('') + '</div>';
+    };
+    var rowList = function (items) {
+      return surface(items.map(function (it, i) {
+        return '<div style="display:flex;gap:10px;padding:12px 0;' + (i < items.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : '') + '">' +
+          '<div style="flex-shrink:0;margin-top:2px;">' + icon('circle-dot', 16, 'var(--accent-secondary)') + '</div>' +
+          '<div style="font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-normal);">' +
+          '<span style="font-weight:700;color:var(--text-primary);">' + it.t + '.</span> ' +
+          '<span style="color:var(--text-secondary);">' + it.d + '</span></div></div>';
+      }).join(''));
+    };
+    var note = function (txt) {
+      return '<p style="margin:10px 2px 0;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-muted);line-height:var(--leading-normal);">' + txt + '</p>';
+    };
+    var flames = function (n) {
+      var s = '';
+      for (var i = 0; i < 3; i++) s += icon('flame', 18, i < n ? 'var(--accent-secondary)' : 'var(--border-strong)');
+      return '<div style="display:flex;gap:2px;">' + s + '</div>';
+    };
+    var fuegoRow = function (n, title, desc, last) {
+      return '<div style="display:flex;align-items:center;gap:14px;padding:12px 0;' + (last ? '' : 'border-bottom:1px solid var(--border-subtle);') + '">' +
+        '<div style="width:64px;flex-shrink:0;">' + flames(n) + '</div>' +
+        '<div style="font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-normal);">' +
+        '<span style="font-weight:700;color:var(--text-primary);">' + title + '.</span> ' +
+        '<span style="color:var(--text-secondary);">' + desc + '</span></div></div>';
+    };
+    // Tiny SVG diagrams for the cuts (stroke uses the palette).
+    var cutSvg = function (kind) {
+      var st = 'width="52" height="40" viewBox="0 0 52 40" fill="none" stroke="var(--slate-500)" stroke-width="1.6" stroke-linejoin="round"';
+      if (kind === 'cubos') return '<svg ' + st + '><rect x="8" y="8" width="11" height="11" rx="1.5"/><rect x="24" y="8" width="11" height="11" rx="1.5"/><rect x="8" y="22" width="11" height="11" rx="1.5"/><rect x="24" y="22" width="11" height="11" rx="1.5"/></svg>';
+      if (kind === 'juliana') return '<svg ' + st + '><rect x="10" y="8" width="4" height="24" rx="1.5"/><rect x="18" y="8" width="4" height="24" rx="1.5"/><rect x="26" y="8" width="4" height="24" rx="1.5"/><rect x="34" y="8" width="4" height="24" rx="1.5"/></svg>';
+      if (kind === 'rodajas') return '<svg ' + st + '><circle cx="17" cy="20" r="8"/><circle cx="35" cy="20" r="8"/></svg>';
+      return '<svg ' + st + '><rect x="10" y="10" width="6" height="6" rx="1"/><rect x="19" y="10" width="6" height="6" rx="1"/><rect x="28" y="10" width="6" height="6" rx="1"/><rect x="10" y="19" width="6" height="6" rx="1"/><rect x="19" y="19" width="6" height="6" rx="1"/><rect x="28" y="19" width="6" height="6" rx="1"/></svg>';
+    };
+    var cutCards = function (items) {
+      return '<div style="display:flex;gap:10px;flex-wrap:wrap;">' + items.map(function (it) {
+        return '<div style="flex:1 1 150px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:14px;">' +
+          '<div style="margin-bottom:8px;">' + cutSvg(it.k) + '</div>' +
+          '<div style="font-family:var(--font-display);font-weight:700;font-size:var(--text-md);color:var(--text-primary);">' + it.t + '</div>' +
+          '<div style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);margin-top:3px;line-height:var(--leading-normal);">' + it.d + '</div></div>';
+      }).join('') + '</div>';
+    };
+
+    var medidas = valueCards([
+      { v: '1 cdta', l: '1 cucharadita = 5 ml' },
+      { v: '1 cda', l: '1 cucharada = 15 ml' },
+      { v: '1 taza', l: '≈ 240 ml' },
+      { v: '½ taza', l: '≈ 120 ml' },
+      { v: '¼ taza', l: '≈ 60 ml' },
+      { v: '1 vaso', l: '≈ 200 ml' },
+      { v: '1 pizca', l: 'lo que tomas entre dos dedos' }
+    ]) + note('3 cucharaditas = 1 cucharada. Si no tienes taza medidora, un vaso común (~200 ml) sirve de referencia.');
+
+    var fuego = surface(
+      fuegoRow(1, 'Fuego bajo', 'Llama chica. Para cocciones lentas, salsas y guisos, o para no quemar.', false) +
+      fuegoRow(2, 'Fuego medio', 'El más usado. Para sofreír y dorar suave sin que se queme.', false) +
+      fuegoRow(3, 'Fuego alto', 'Para hervir agua rápido, sellar carne y saltear.', true)
+    );
+
+    var horno = valueCards([
+      { v: '150 °C', l: 'Horno suave' },
+      { v: '180 °C', l: 'Horno medio (el más común)' },
+      { v: '200–220 °C', l: 'Horno fuerte' }
+    ]) + note('Precalienta el horno unos 10 minutos antes de meter la comida.');
+
+    var cortes = cutCards([
+      { k: 'cubos', t: 'En cubos / picado', d: 'Trozos pequeños y parejos. Base de sofritos y salsas.' },
+      { k: 'juliana', t: 'En juliana', d: 'Tiras finas y largas. Para salteados y ensaladas.' },
+      { k: 'rodajas', t: 'En rodajas', d: 'Cortes redondos del mismo grosor. Para hornear o decorar.' },
+      { k: 'brunoise', t: 'Brunoise', d: 'Cubitos muy pequeños (~3 mm). Dan sabor sin notarse.' }
+    ]);
+
+    var tecnicas = rowList([
+      { t: 'Sofreír', d: 'Cocinar en poco aceite a fuego medio hasta ablandar y dorar suave. Es la base de muchos platos.' },
+      { t: 'Rehogar', d: 'Sofreír lento y suave para que los ingredientes suelten su sabor sin dorarse.' },
+      { t: 'Saltear', d: 'Cocinar a fuego alto moviendo rápido y poco tiempo, para que quede jugoso.' },
+      { t: 'Hervir', d: 'Cocinar en agua con burbujas grandes y constantes.' },
+      { t: 'A fuego lento', d: 'Que el líquido apenas borbotee. Para guisos y salsas que necesitan tiempo.' },
+      { t: 'Sellar', d: 'Dorar la superficie de la carne a fuego alto para que quede jugosa por dentro.' },
+      { t: 'Hornear', d: 'Cocinar con el calor del horno, sin darle vuelta constantemente.' },
+      { t: 'Reducir', d: 'Dejar que un líquido se evapore para que espese y concentre su sabor.' }
+    ]);
+
+    var senales = rowList([
+      { t: '“Hasta que esté transparente”', d: 'La cebolla pasa de blanca a translúcida, sin dorarse (~5 min a fuego medio).' },
+      { t: '“Hasta que dore”', d: 'Toma un color marrón dorado en la superficie.' },
+      { t: '“Al dente”', d: 'La pasta queda cocida pero firme al morder, no blanda.' },
+      { t: '“Que rompa el hervor”', d: 'El agua burbujea fuerte y de forma pareja.' },
+      { t: '“A punto”', d: 'Cocido en su punto justo: ni crudo ni pasado.' }
+    ]);
+
+    var trucos = rowList([
+      { t: 'Prepara antes', d: 'Ten todo cortado y medido antes de prender el fuego; así no se te quema nada por ir con prisa.' },
+      { t: 'La sal, al final', d: 'Prueba y ajusta la sal al terminar; siempre puedes agregar, pero no quitar.' },
+      { t: 'Controla el fuego', d: 'Si algo se cocina muy rápido o empieza a quemarse, baja el fuego. No pasa nada por ir despacio.' },
+      { t: 'Agua de la pasta', d: 'Sala el agua cuando hierva, antes de echar la pasta.' }
+    ]);
+
+    return '<div class="cp-fade" style="max-width:680px;margin:0 auto;padding:24px 28px 60px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+      icon('book-open', 18, 'var(--accent-primary)') +
+      '<span class="cp-eyebrow">Para principiantes</span></div>' +
+      '<h1 style="font-size:var(--text-3xl);margin:0 0 8px;">Básicos de cocina</h1>' +
+      '<p style="font-family:var(--font-body);font-size:var(--text-base);color:var(--text-secondary);margin:0;line-height:var(--leading-normal);">Medidas, cortes, fuegos y conceptos para seguir cualquier receta sin dudas.</p>' +
+      secHeader('ruler', 'Medidas y equivalencias') + medidas +
+      secHeader('flame', 'El fuego de la hornalla') + fuego +
+      secHeader('flame', 'El horno') + horno +
+      secHeader('utensils', 'Cortes básicos') + cortes +
+      secHeader('chef-hat', 'Técnicas comunes') + tecnicas +
+      secHeader('search', 'Señales que verás en las recetas') + senales +
+      secHeader('sparkles', 'Trucos básicos') + trucos +
+      '</div>';
+  }
+
   function logModal() {
     if (!state.logOpen) return '';
     var stars = [1, 2, 3, 4, 5].map(function (n) {
@@ -830,6 +972,7 @@
     else if (view === 'recipe') main = recipeView();
     else if (view === 'history') main = historyView();
     else if (view === 'saved') main = savedListView();
+    else if (view === 'glosario') main = glosarioView();
 
     document.getElementById('app').innerHTML = topBar(view) + main + logModal() + confirmModal();
   }

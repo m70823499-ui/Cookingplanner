@@ -43,6 +43,13 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    historial (con confirmación). Arriba del historial hay **estadísticas
    mensuales** (cocinadas, nuevas vs. repetidas, rating promedio) con navegación
    por mes.
+5. **Básicos de cocina** (glosario): sección de referencia, visual y simple, con
+   **medidas y equivalencias** (cucharada, taza, pizca…), **fuegos** de la
+   hornalla y del horno, **cortes** (con diagramas), **técnicas** comunes,
+   **señales** que aparecen en las recetas ("al dente", "hasta que dore"…) y
+   **trucos** básicos. Se abre desde el ícono de libro (barra superior), desde
+   Inicio, o desde un enlace dentro de la receta (al volver, regresas a la receta).
+   Es contenido fijo, no usa la API.
 
 Reglas de la spec: no se guardan preferencias sin al menos un formato y una
 cocina; la generación **reintenta una vez** sola y, si falla, muestra un error
