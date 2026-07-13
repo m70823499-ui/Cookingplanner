@@ -68,12 +68,24 @@ subcarpeta.
 
 1. Sube este proyecto a un repositorio de GitHub.
 2. En [vercel.com](https://vercel.com) -> **Add New... -> Project** e importa el repo.
-3. En **Environment Variables** agrega:
-   `ANTHROPIC_API_KEY = sk-ant-...` (tu clave de
-   [console.anthropic.com](https://console.anthropic.com/settings/keys)).
+3. (Opcional) En **Environment Variables** agrega un proveedor de IA — usa el
+   primero que configures:
+   - `GEMINI_API_KEY` — clave **gratuita** de
+     [Google AI Studio](https://aistudio.google.com/apikey) (recomendado).
+   - `ANTHROPIC_API_KEY` — clave de
+     [console.anthropic.com](https://console.anthropic.com/settings/keys) (de pago).
 4. **Deploy**. Vercel sirve la app y usa `api/generate.js` como backend.
 
+> **La app funciona aunque NO configures ninguna clave.** En ese caso (o si el
+> proveedor falla o se queda sin saldo) cae automáticamente en el **recetario
+> integrado** (`js/recipes.js`): recetas reales, listas y sin costo. Configurar
+> `GEMINI_API_KEY` desbloquea generación con IA ilimitada y personalizada, gratis
+> dentro de la capa gratuita de Google.
+
 La clave queda solo en Vercel; el sitio nunca la expone.
+
+> Recuerda: al cambiar una variable de entorno en Vercel, debes **volver a
+> desplegar** (Deployments -> ⋯ -> Redeploy) para que el deploy en vivo la tome.
 
 ---
 
@@ -104,7 +116,7 @@ El servidor local sirve la app **y** hace de proxy hacia la API (mismo endpoint
 ├── index.html        Shell de la página
 ├── server.js         Backend local (sirve la app + proxy /api/generate). Node 18+, sin dependencias
 ├── api/
-│   └── generate.js   Función serverless de Vercel (mismo proxy, con ANTHROPIC_API_KEY)
+│   └── generate.js   Función serverless de Vercel (proxy a Gemini o Anthropic)
 ├── package.json      Metadatos + script "start"
 ├── css/
 │   ├── tokens.css    Tokens del design system + dark mode
@@ -112,6 +124,7 @@ El servidor local sirve la app **y** hace de proxy hacia la API (mismo endpoint
 └── js/
     ├── icons.js      Íconos SVG (copiados del design system)
     ├── api.js        Cliente: llama a /api/generate (nunca a la API directamente)
+    ├── recipes.js    Recetario integrado (respaldo gratis cuando no hay IA)
     └── app.js        Estado, vistas y lógica (onboarding, receta, timers, historial)
 ```
 
