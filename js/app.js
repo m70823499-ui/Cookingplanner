@@ -204,12 +204,17 @@
     if (state.timeLimit) {
       lines.push('Tiempo disponible: el usuario dispone de unos ' + state.timeLimit + ' minutos en total (preparación + cocción). La receta DEBE caber en ese tiempo y el campo timeMinutes debe ser menor o igual a ' + state.timeLimit + '.');
     }
+    lines.push('CALIDAD DE LOS PASOS (lo más importante): la persona es principiante y debe poder cocinar el plato SIN conocimientos previos. Cada "description" tiene que ser clara, completa y autocontenida:');
+    lines.push('- Explica CÓMO se hace cada acción, no solo qué hacer. Ejemplos: cómo cortar (forma y tamaño concreto, p. ej. "corta la cebolla en cubos pequeños de ~0,5 cm"); a qué fuego (bajo/medio/alto); cuánto tiempo aproximado; y qué señal buscar (p. ej. "sofríe a fuego medio 5–7 min hasta que esté transparente y suelte aroma, sin que se dore").');
+    lines.push('- Incluye cantidades, temperaturas y tiempos concretos cuando importen, y algún truco práctico. Prohibido dejar pasos vagos como "cocina la cebolla" o "sofríe la cebolla" sin explicar el cómo.');
+    lines.push('- Si un paso tiene varias acciones, descríbelas en orden dentro de esa misma description. Nada de jerga de chef sin explicar.');
+    lines.push('- Usa TODOS los pasos que hagan falta para que quede bien explicado (normalmente entre 5 y 12). Prioriza claridad y completitud por encima de tener pocos pasos.');
     lines.push('Devuelve exactamente este JSON (tipos exactos, sin campos extra):');
     lines.push('{"title": string, "difficulty": "Fácil"|"Intermedio"|"Avanzado", "calories": number, "timeMinutes": number, "baseServings": number, "tags": [string, string], ' +
       '"technique": string (la técnica clave a dominar en esta receta, en 2 a 5 palabras, ej. "risotto cremoso", "sofrito", "masa de pizza"), ' +
       '"ingredients": [{"icon": string (uno de: ' + ICON_WHITELIST.join(',') + '), "label": string, "amount": number, "unit": string}], ' +
-      '"steps": [{"title": string, "description": string, "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}');
-    lines.push('De 5 a 9 ingredientes y de 4 a 8 pasos. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).');
+      '"steps": [{"title": string (nombre corto del paso), "description": string (instrucción detallada, clara y autocontenida: el cómo, el fuego, el tiempo y la señal a buscar; sin jerga), "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}');
+    lines.push('De 5 a 9 ingredientes y de 5 a 12 pasos, cada paso claro y completo. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).');
     return lines.join('\n');
   }
   function parseRecipe(text) {
