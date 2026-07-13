@@ -120,7 +120,8 @@
     checked: {},
     timers: {},
     logOpen: false,
-    ratingDraft: 0
+    ratingDraft: 0,
+    savedView: false          // true when re-opening a recipe saved in history
   };
 
   function setState(partial) { Object.assign(state, partial); render(); }
@@ -156,10 +157,10 @@
 
   // ------------------------- recipe generation -------------------------
   function startGenerate() {
-    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2 });
+    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, savedView: false });
     generateRecipe(false);
   }
-  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {} }); generateRecipe(false); }
+  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, savedView: false }); generateRecipe(false); }
   function manualRetry() { setState({ status: 'loading' }); generateRecipe(false); }
 
   function buildPrompt() {
@@ -227,11 +228,20 @@
       title: state.recipe.title,
       rating: state.ratingDraft,
       note: (note || '').trim(),
-      isRepeat: isRepeat
+      isRepeat: isRepeat,
+      recipe: JSON.parse(JSON.stringify(state.recipe))  // full recipe, so it can be re-opened later
     };
     var nextHistory = [entry].concat(state.history);
     persistHistory(nextHistory);
     setState({ history: nextHistory, logOpen: false, view: 'home' });
+  }
+
+  // Re-open a recipe stored in history (adjustable servings + timers still work).
+  function openSaved(idx) {
+    var h = state.history[idx];
+    if (!h || !h.recipe) return;
+    var base = Math.max(1, Math.round(h.recipe.baseServings) || 2);
+    setState({ recipe: h.recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', savedView: true });
   }
 
   // ------------------------- timers tick -------------------------
@@ -272,7 +282,8 @@
     'open-log': openLog,
     'close-log': closeLog,
     'set-rating': function (el) { setRating(Number(el.getAttribute('data-val'))); },
-    'save-log': saveLog
+    'save-log': saveLog,
+    'view-saved': function (el) { openSaved(Number(el.getAttribute('data-idx'))); }
   };
 
   function onClick(e) {
@@ -286,8 +297,9 @@
   function topBar(view) {
     var isHome = view === 'home', isRecipe = view === 'recipe', isHistory = view === 'history', isEditPrefs = view === 'editPrefs';
     if (!(isHome || isRecipe || isHistory || isEditPrefs)) return '';
+    var backAction = (isRecipe && state.savedView) ? 'go-history' : 'go-home';
     return '<div class="cp-topbar">' +
-      iconButton({ name: 'arrow-left', label: 'Volver', action: 'go-home', hidden: isHome }) +
+      iconButton({ name: 'arrow-left', label: 'Volver', action: backAction, hidden: isHome }) +
       '<div class="cp-brand">' + icon('chef-hat', 20, 'var(--accent-primary)') +
       '<span class="cp-brand__name">Cooking Planner</span></div>' +
       iconButton({ name: 'list', label: 'Historial', active: isHistory, action: 'go-history' }) +
@@ -459,10 +471,15 @@
     }).join('');
     var steps = stepsHeader + '<div style="margin-bottom:32px;">' + stepsHtml + '</div>';
 
-    var actionBar = '<div class="cp-actionbar">' +
-      button({ label: 'No me convence, otra', variant: 'secondary', icon: 'refresh-cw', action: 'regenerate', style: 'flex:1;max-width:320px;' }) +
-      button({ label: 'Ya la cociné', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
-      '</div>';
+    var actionBar = state.savedView
+      ? '<div class="cp-actionbar">' +
+        button({ label: 'Volver al historial', variant: 'secondary', icon: 'arrow-left', action: 'go-history', style: 'flex:1;max-width:320px;' }) +
+        button({ label: 'Registrar de nuevo', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
+        '</div>'
+      : '<div class="cp-actionbar">' +
+        button({ label: 'No me convence, otra', variant: 'secondary', icon: 'refresh-cw', action: 'regenerate', style: 'flex:1;max-width:320px;' }) +
+        button({ label: 'Ya la cociné', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
+        '</div>';
 
     return badges + '<h1 style="font-size:var(--text-3xl);margin:0 0 18px;">' + esc(r.title) + '</h1>' +
       statsBar + ingredients + steps + actionBar;
@@ -477,12 +494,15 @@
         icon('list', 28, 'var(--text-muted)') +
         'Todavía no has cocinado nada registrado. Genera una receta y confírmalo cuando la cocines.</div>';
     } else {
-      body = state.history.map(function (h) {
+      body = state.history.map(function (h, i) {
         var starsHtml = [1, 2, 3, 4, 5].map(function (n) {
           var on = n <= h.rating;
           return icon('star', 14, on ? 'var(--accent-primary)' : 'var(--border-strong)', on ? 'fill:var(--accent-primary);' : '');
         }).join('');
         var note = h.note ? '<p style="margin:6px 0 0;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-normal);">' + esc(h.note) + '</p>' : '';
+        var viewBtn = h.recipe
+          ? '<div style="margin-top:12px;">' + button({ label: 'Ver receta', variant: 'secondary', size: 'sm', icon: 'list', action: 'view-saved', data: { idx: i } }) + '</div>'
+          : '';
         return '<div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:12px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
           '<span style="font-family:var(--font-display);font-size:var(--text-md);font-weight:700;">' + esc(h.title) + '</span>' +
@@ -490,7 +510,7 @@
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
           '<div style="display:flex;gap:2px;">' + starsHtml + '</div>' +
           '<span style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);">' + esc(h.date) + '</span></div>' +
-          note + '</div>';
+          note + viewBtn + '</div>';
       }).join('');
     }
     return '<div class="cp-fade" style="max-width:640px;margin:0 auto;padding:24px 28px 40px;">' +

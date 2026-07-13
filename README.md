@@ -22,7 +22,10 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    cantidades escalan solas), pasos numerados y **timer por paso** cuando hay
    espera o cocción.
 4. **Registrar en el historial**: "Ya la cociné" + rating 1–5 (obligatorio) +
-   observación opcional. Solo entra al historial lo que confirmas.
+   observación opcional. Solo entra al historial lo que confirmas. Cada registro
+   guarda la **receta completa**: desde el historial puedes **volver a abrirla**
+   ("Ver receta") con sus ingredientes, porciones ajustables y timers, y
+   **registrarla de nuevo** si la cocinas otra vez (se marca como "Repetida").
 
 Reglas de la spec: no se guardan preferencias sin al menos un formato y una
 cocina; la generación **reintenta una vez** sola y, si falla, muestra un error
