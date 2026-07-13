@@ -123,7 +123,9 @@
     logOpen: false,
     ratingDraft: 0,
     saved: [],                // recipes saved for later (separate from cooking history)
-    recipeSource: 'fresh'     // 'fresh' | 'history' | 'saved' — where the shown recipe came from
+    recipeSource: 'fresh',    // 'fresh' | 'history' | 'saved' — where the shown recipe came from
+    craving: '',              // optional per-session "I want something specific" request
+    confirmDelete: null       // { type: 'history', idx } while a delete confirmation is open
   };
 
   function setState(partial) { Object.assign(state, partial); render(); }
@@ -155,12 +157,14 @@
   }
   function openEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'editPrefs', onboardingError: false }); }
   function cancelEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'home', onboardingError: false }); }
-  function goHome() { setState({ view: 'home' }); }
+  function goHome() { setState({ view: 'home', craving: '' }); }
   function goHistory() { setState({ view: 'history' }); }
 
   // ------------------------- recipe generation -------------------------
   function startGenerate() {
-    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh' });
+    var el = document.querySelector('[data-craving]');
+    var craving = el ? el.value.trim() : (state.craving || '');
+    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh', craving: craving });
     generateRecipe(false);
   }
   function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, recipeSource: 'fresh' }); generateRecipe(false); }
@@ -168,21 +172,28 @@
 
   function buildPrompt() {
     var p = state.prefs || blankDraft();
-    return [
+    var craving = (state.craving || '').trim();
+    var lines = [
       'Genera UNA receta casera en español neutro, en formato JSON estricto (sin markdown, sin comentarios, sin texto fuera del JSON).',
       'Preferencias fijas del usuario (respétalas siempre):',
       '- Picante: ' + (p.spicy ? 'sí, puede llevar picante' : 'NO, nada de picante') + '.',
       '- Fruta en la receta: ' + (p.fruit ? 'permitida' : 'NO incluir fruta como ingrediente') + '.',
       '- Formatos favoritos: ' + p.formats.join(', ') + '.',
       '- Cocinas favoritas: ' + p.cuisines.join(', ') + '.',
-      '- Nivel de habilidad: ' + p.skill + ' (pasos claros, trucos prácticos, sin jerga de chef si es principiante).',
-      'Elige un formato y una cocina de esas listas para esta receta puntual.',
-      'Devuelve exactamente este JSON (tipos exactos, sin campos extra):',
-      '{"title": string, "difficulty": "Fácil"|"Intermedio"|"Avanzado", "calories": number, "timeMinutes": number, "baseServings": number, "tags": [string, string], ' +
+      '- Nivel de habilidad: ' + p.skill + ' (pasos claros, trucos prácticos, sin jerga de chef si es principiante).'
+    ];
+    if (craving) {
+      lines.push('Pedido puntual del usuario para HOY: "' + craving + '". Tiene PRIORIDAD sobre la elección de formato y cocina: respétalo aunque implique un formato o una cocina fuera de las favoritas. De todas formas, respeta SIEMPRE lo de picante, fruta y nivel de habilidad.');
+      lines.push('Si el pedido puntual no define un formato o una cocina concretos, elige uno de cada lista de favoritas.');
+    } else {
+      lines.push('Elige un formato y una cocina de esas listas para esta receta puntual.');
+    }
+    lines.push('Devuelve exactamente este JSON (tipos exactos, sin campos extra):');
+    lines.push('{"title": string, "difficulty": "Fácil"|"Intermedio"|"Avanzado", "calories": number, "timeMinutes": number, "baseServings": number, "tags": [string, string], ' +
       '"ingredients": [{"icon": string (uno de: ' + ICON_WHITELIST.join(',') + '), "label": string, "amount": number, "unit": string}], ' +
-      '"steps": [{"title": string, "description": string, "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}',
-      'De 5 a 9 ingredientes y de 4 a 8 pasos. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).'
-    ].join('\n');
+      '"steps": [{"title": string, "description": string, "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}');
+    lines.push('De 5 a 9 ingredientes y de 4 a 8 pasos. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).');
+    return lines.join('\n');
   }
   function parseRecipe(text) {
     var clean = (text || '').trim();
@@ -223,8 +234,8 @@
     var noteEl = document.querySelector('[data-note]');
     var note = noteEl ? noteEl.value : '';
     if (state.ratingDraft < 1 || !state.recipe) return;
-    var norm = state.recipe.title.trim().toLowerCase();
-    var isRepeat = state.history.some(function (h) { return h.title.trim().toLowerCase() === norm; });
+    var key = normTitle(state.recipe.title);
+    var isRepeat = state.history.some(function (h) { return normTitle(h.title) === key; });
     var entry = {
       id: Date.now(),
       date: new Date().toISOString().slice(0, 10),
@@ -236,7 +247,22 @@
     };
     var nextHistory = [entry].concat(state.history);
     persistHistory(nextHistory);
-    setState({ history: nextHistory, logOpen: false, view: 'home' });
+    setState({ history: nextHistory, logOpen: false, view: 'home', craving: '' });
+  }
+
+  // Delete a cooked entry from history (behind a confirmation).
+  function askRemoveHistory(idx) { setState({ confirmDelete: { type: 'history', idx: idx } }); }
+  function cancelConfirm() { setState({ confirmDelete: null }); }
+  function doConfirmedDelete() {
+    var c = state.confirmDelete;
+    if (c && c.type === 'history') {
+      var next = state.history.slice();
+      next.splice(c.idx, 1);
+      persistHistory(next);
+      setState({ history: next, confirmDelete: null });
+      return;
+    }
+    setState({ confirmDelete: null });
   }
 
   // Open a recipe object in the interactive view (adjustable servings + timers).
@@ -248,7 +274,10 @@
   function openSavedRecipe(idx) { var s = state.saved[idx]; if (s && s.recipe) openRecipeObject(s.recipe, 'saved'); }
 
   // ------------------------- saved for later (bookmark) -------------------------
-  function normTitle(t) { return (t || '').trim().toLowerCase(); }
+  // Accent- and punctuation-insensitive so "Lasaña" == "lasana", "Tacos al Pastor!" == "tacos al pastor".
+  function normTitle(t) {
+    return (t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
   function isRecipeSaved(recipe) {
     return !!recipe && state.saved.some(function (s) { return normTitle(s.recipe.title) === normTitle(recipe.title); });
   }
@@ -308,7 +337,10 @@
     'toggle-save': toggleSaveCurrent,
     'view-history': function (el) { openHistoryRecipe(Number(el.getAttribute('data-idx'))); },
     'view-saved': function (el) { openSavedRecipe(Number(el.getAttribute('data-idx'))); },
-    'remove-saved': function (el) { removeSaved(Number(el.getAttribute('data-idx'))); }
+    'remove-saved': function (el) { removeSaved(Number(el.getAttribute('data-idx'))); },
+    'ask-remove-history': function (el) { askRemoveHistory(Number(el.getAttribute('data-idx'))); },
+    'cancel-confirm': cancelConfirm,
+    'confirm-delete': doConfirmedDelete
   };
 
   function onClick(e) {
@@ -418,6 +450,13 @@
       icon('chef-hat', 46, 'var(--accent-primary)') +
       '<h1 style="font-size:var(--text-3xl);margin:16px 0 10px;">¿Qué cocinamos hoy?</h1>' +
       '<p style="font-family:var(--font-body);font-size:var(--text-base);color:var(--text-secondary);max-width:420px;margin:0 auto;line-height:var(--leading-normal);">Genera una receta nueva ajustada a tus gustos, sin límites de un plan pago.</p>' +
+      '</div>' +
+      '<div style="max-width:420px;margin:0 auto 18px;text-align:left;">' +
+        '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);padding:11px 16px;box-shadow:var(--shadow-xs);">' +
+          icon('sparkles', 16, 'var(--text-muted)') +
+          '<input data-craving type="text" autocomplete="off" placeholder="¿Se te antoja algo en específico? (opcional)" value="' + esc(state.craving || '') + '" style="border:none;outline:none;background:transparent;flex:1;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-primary);" />' +
+        '</div>' +
+        '<div style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);margin-top:8px;text-align:center;">Déjalo vacío y te recomiendo según tus gustos.</div>' +
       '</div>' +
       button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;max-width:360px;margin:0 auto;' }) +
       '<div style="display:flex;gap:10px;justify-content:center;margin-top:32px;flex-wrap:wrap;">' +
@@ -564,7 +603,10 @@
         return '<div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:12px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
           '<span style="font-family:var(--font-display);font-size:var(--text-md);font-weight:700;">' + esc(h.title) + '</span>' +
-          badge({ label: h.isRepeat ? 'Repetida' : 'Nueva', tone: h.isRepeat ? 'neutral' : 'accent' }) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+          badge({ label: h.isRepeat ? 'Repetida' : 'Nueva', tone: h.isRepeat ? 'neutral' : 'accent' }) +
+          iconButton({ name: 'x', size: 28, label: 'Borrar del historial', action: 'ask-remove-history', data: { idx: i } }) +
+          '</div></div>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
           '<div style="display:flex;gap:2px;">' + starsHtml + '</div>' +
           '<span style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);">' + esc(h.date) + '</span></div>' +
@@ -636,6 +678,17 @@
       '</div></div></div>';
   }
 
+  function confirmModal() {
+    if (!state.confirmDelete) return '';
+    return '<div class="cp-overlay"><div class="cp-modal">' +
+      '<h3 style="font-size:var(--text-xl);margin:0 0 8px;">¿Borrar del historial?</h3>' +
+      '<p style="font-family:var(--font-body);color:var(--text-secondary);margin:0 0 20px;font-size:var(--text-sm);line-height:var(--leading-normal);">Se quitará este registro de lo que cocinaste. No se puede deshacer.</p>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+      button({ label: 'Cancelar', variant: 'secondary', action: 'cancel-confirm' }) +
+      button({ label: 'Borrar', variant: 'primary', icon: 'x', action: 'confirm-delete' }) +
+      '</div></div></div>';
+  }
+
   // ------------------------- render -------------------------
   function render() {
     var view = state.view;
@@ -647,7 +700,7 @@
     else if (view === 'history') main = historyView();
     else if (view === 'saved') main = savedListView();
 
-    document.getElementById('app').innerHTML = topBar(view) + main + logModal();
+    document.getElementById('app').innerHTML = topBar(view) + main + logModal() + confirmModal();
   }
 
   // ------------------------- boot -------------------------

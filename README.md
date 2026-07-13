@@ -18,6 +18,10 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    formatos favoritos, cocinas favoritas y nivel de habilidad. Se guardan una
    sola vez y se editan después con el ícono de ajustes.
 2. **Generar una receta bajo demanda** aplicando siempre esas preferencias.
+   Opcionalmente, en la pantalla de inicio puedes escribir un **pedido puntual**
+   ("¿se te antoja algo en específico?"): esa generación lo prioriza (aunque sea
+   un formato/cocina fuera de tus favoritas), respetando siempre picante, fruta y
+   nivel. Si lo dejas vacío, te recomienda según tus gustos.
 3. **Vista interactiva**: ingredientes con **porciones ajustables** (las
    cantidades escalan solas), pasos numerados y **timer por paso** cuando hay
    espera o cocción.
@@ -30,7 +34,9 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    observación opcional. Solo entra al historial lo que confirmas. Cada registro
    guarda la **receta completa**: desde el historial puedes **volver a abrirla**
    ("Ver receta") con sus ingredientes, porciones ajustables y timers, y
-   **registrarla de nuevo** si la cocinas otra vez (se marca como "Repetida").
+   **registrarla de nuevo** si la cocinas otra vez (se marca como "Repetida", con
+   detección que ignora acentos y puntuación). Puedes **borrar** un registro del
+   historial (con confirmación).
 
 Reglas de la spec: no se guardan preferencias sin al menos un formato y una
 cocina; la generación **reintenta una vez** sola y, si falla, muestra un error
