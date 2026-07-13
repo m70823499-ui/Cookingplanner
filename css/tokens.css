@@ -64,6 +64,12 @@
 
   --focus-ring: var(--slate-500);
 
+  /* Warm "appetite" accent (terracotta) — from the design system. Used for the
+     hero accent word and small highlights; the cool slate leads the headings. */
+  --accent-warm: #C6785A;
+  --accent-warm-hover: #B4664A;
+  --hero-cool: var(--slate-800);   /* deep slate for the hero headline words */
+
   /* --- Typography --- */
   --font-display: 'Dosis', system-ui, sans-serif;
   --font-body: 'Dosis', system-ui, sans-serif;
@@ -152,6 +158,9 @@
     --accent-secondary-hover: #DCE0D4;
     --success: #A9C08F;
     --success-tint: rgba(169, 192, 143, 0.2);
+    --accent-warm: #E8B6A4;
+    --accent-warm-hover: #F0CDBF;
+    --hero-cool: #E7EEF1;
   }
 }
 
@@ -173,11 +182,15 @@
   --accent-secondary-hover: #DCE0D4;
   --success: #A9C08F;
   --success-tint: rgba(169, 192, 143, 0.2);
+  --accent-warm: #E8B6A4;
+  --accent-warm-hover: #F0CDBF;
+  --hero-cool: #E7EEF1;
 }
 
 /* Responsive: shrink the largest display sizes on narrow screens */
 @media (max-width: 520px) {
   :root {
+    --text-4xl: 40px;
     --text-3xl: 34px;
     --text-2xl: 30px;
     --text-xl: 24px;

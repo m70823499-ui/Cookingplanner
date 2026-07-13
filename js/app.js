@@ -536,35 +536,59 @@
       '</div>';
   }
 
+  var BENEFITS = [
+    { ic: 'sparkles', t: 'IA que entiende tus gustos', d: 'Recetas personalizadas a tus preferencias.' },
+    { ic: 'utensils', t: 'Pasos claros y timers', d: 'Instrucciones detalladas y tiempo por paso.' },
+    { ic: 'clock', t: 'Se ajusta a tu tiempo', d: 'Pide algo puntual o filtra por minutos.' },
+    { ic: 'book-open', t: 'Básicos de cocina', d: 'Medidas, cortes y técnicas a mano.' },
+    { ic: 'bookmark', t: 'Guarda para después', d: 'Marca recetas y reencuéntralas cuando quieras.' },
+    { ic: 'list', t: 'Tu historial', d: 'Registra lo cocinado, con estadísticas por mes.' }
+  ];
+
   function homeView() {
     var count = state.history.length;
     var label = count === 0 ? 'Sin recetas registradas todavía' : (count + (count === 1 ? ' receta cocinada' : ' recetas cocinadas'));
-    return '<div class="cp-fade" style="max-width:640px;margin:0 auto;padding:24px 28px 40px;text-align:center;">' +
-      '<div style="margin:40px 0 30px;">' +
-      icon('chef-hat', 46, 'var(--accent-primary)') +
-      '<h1 style="font-size:var(--text-3xl);margin:16px 0 10px;">¿Qué cocinamos hoy?</h1>' +
-      '<p style="font-family:var(--font-body);font-size:var(--text-base);color:var(--text-secondary);max-width:420px;margin:0 auto;line-height:var(--leading-normal);">Genera una receta nueva ajustada a tus gustos, sin límites de un plan pago.</p>' +
-      '</div>' +
-      '<div style="max-width:420px;margin:0 auto 18px;text-align:left;">' +
-        '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);padding:11px 16px;box-shadow:var(--shadow-xs);">' +
+
+    var hero =
+      '<div style="text-align:center;margin:30px auto 26px;max-width:640px;">' +
+      '<h1 class="cp-hero-title">Genera. Cocina. <span class="warm">Disfruta.</span></h1>' +
+      '<p class="cp-hero-sub">Genera recetas ajustadas a tus gustos, cocínalas con pasos claros y timers, y lleva tu historial — sin límites de un plan pago.</p>' +
+      '</div>';
+
+    var genCard =
+      '<div style="max-width:470px;margin:0 auto 44px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-xl);box-shadow:var(--shadow-card);padding:22px 22px 24px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' + icon('sparkles', 18, 'var(--accent-primary)') + '<span class="cp-eyebrow">Genera una receta</span></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-page);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);padding:11px 16px;">' +
           icon('sparkles', 16, 'var(--text-muted)') +
           '<input data-craving type="text" autocomplete="off" placeholder="¿Se te antoja algo en específico? (opcional)" value="' + esc(state.craving || '') + '" style="border:none;outline:none;background:transparent;flex:1;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-primary);" />' +
         '</div>' +
-        '<div style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);margin-top:8px;text-align:center;">Déjalo vacío y te recomiendo según tus gustos.</div>' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center;">' +
-          '<span style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);width:100%;text-align:center;margin-bottom:2px;">¿Cuánto tiempo tienes?</span>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;">' +
+          '<span style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);width:100%;margin-bottom:2px;">¿Cuánto tiempo tienes?</span>' +
           TIME_OPTIONS.map(function (o) {
             var selected = (o.min === 0) ? (state.timeLimit == null) : (state.timeLimit === o.min);
             return tag({ label: o.label, icon: o.min === 0 ? 'sparkles' : 'clock', selected: selected, action: 'set-time', data: { min: o.min } });
           }).join('') +
         '</div>' +
-      '</div>' +
-      button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;max-width:360px;margin:0 auto;' }) +
-      '<div style="display:flex;gap:10px;justify-content:center;margin-top:32px;flex-wrap:wrap;">' +
+        button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;margin-top:20px;' }) +
+        '<div style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);margin-top:10px;text-align:center;">Déjalo vacío y te recomiendo según tus gustos.</div>' +
+      '</div>';
+
+    var benefits =
+      '<div style="text-align:center;margin-bottom:16px;"><span class="cp-eyebrow">Todo para cocinar mejor</span></div>' +
+      '<div class="cp-benefits">' + BENEFITS.map(function (b) {
+        return '<div class="cp-benefit"><div class="cp-benefit__icon">' + icon(b.ic, 24, 'var(--accent-primary)') + '</div>' +
+          '<div class="cp-benefit__title">' + esc(b.t) + '</div>' +
+          '<div class="cp-benefit__desc">' + esc(b.d) + '</div></div>';
+      }).join('') + '</div>';
+
+    var pills =
+      '<div style="display:flex;gap:10px;justify-content:center;margin-top:38px;flex-wrap:wrap;">' +
       '<div class="cp-pill">' + icon('list', 15, 'var(--accent-secondary)') + '<span>' + esc(label) + '</span></div>' +
       '<div class="cp-pill cp-pill--btn" data-action="go-glosario">' + icon('book-open', 15, 'var(--accent-primary)') + '<span>Básicos de cocina</span></div>' +
-      '</div>' +
       '</div>';
+
+    return '<div class="cp-fade" style="max-width:820px;margin:0 auto;padding:16px 28px 60px;">' +
+      hero + genCard + benefits + pills + '</div>';
   }
 
   function recipeView() {
