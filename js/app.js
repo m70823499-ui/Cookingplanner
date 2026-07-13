@@ -95,6 +95,7 @@
     var active = !!opts.active;
     var cls = 'cp-iconbtn' + (active ? ' cp-iconbtn--active' : '');
     var attrs = 'class="' + cls + '" aria-label="' + esc(opts.label || opts.name) + '"';
+    if (opts.label) attrs += ' title="' + esc(opts.label) + '"'; // hover tooltip with the name
     attrs += ' style="width:' + size + 'px;height:' + size + 'px;' + (opts.hidden ? 'visibility:hidden;' : '') + (opts.style || '') + '"';
     if (opts.action) attrs += ' data-action="' + opts.action + '"';
     if (opts.data) { for (var k in opts.data) attrs += ' data-' + k + '="' + esc(opts.data[k]) + '"'; }
