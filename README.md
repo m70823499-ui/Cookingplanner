@@ -19,12 +19,16 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    sola vez y se editan después con el ícono de ajustes.
 2. **Generar una receta bajo demanda** aplicando siempre esas preferencias.
    Opcionalmente, en la pantalla de inicio puedes escribir un **pedido puntual**
-   ("¿se te antoja algo en específico?"): esa generación lo prioriza (aunque sea
-   un formato/cocina fuera de tus favoritas), respetando siempre picante, fruta y
-   nivel. Si lo dejas vacío, te recomienda según tus gustos.
+   ("¿se te antoja algo en específico?") y/o elegir el **tiempo disponible**
+   (sin apuro / 20 / 30 / 45 min): esa generación lo prioriza (el pedido puede
+   ser un formato/cocina fuera de tus favoritas; el tiempo limita prep + cocción),
+   respetando siempre picante, fruta y nivel. Si los dejas vacíos, te recomienda
+   según tus gustos.
 3. **Vista interactiva**: ingredientes con **porciones ajustables** (las
    cantidades escalan solas), pasos numerados y **timer por paso** cuando hay
-   espera o cocción.
+   espera o cocción. Además: **Copiar ingredientes** (lista de compras a las
+   porciones elegidas, al portapapeles) y **Ver la técnica en YouTube** (link de
+   búsqueda por la técnica clave de la receta, que nunca queda roto).
 3b. **Guardar para después** (marcador): si una receta te interesa pero no la vas
    a cocinar ahora, tócala en el marcador y queda en la sección **Guardadas**
    (separada del historial de cocinado). Ahí puedes **buscarla** por nombre o
@@ -36,7 +40,9 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
    ("Ver receta") con sus ingredientes, porciones ajustables y timers, y
    **registrarla de nuevo** si la cocinas otra vez (se marca como "Repetida", con
    detección que ignora acentos y puntuación). Puedes **borrar** un registro del
-   historial (con confirmación).
+   historial (con confirmación). Arriba del historial hay **estadísticas
+   mensuales** (cocinadas, nuevas vs. repetidas, rating promedio) con navegación
+   por mes.
 
 Reglas de la spec: no se guardan preferencias sin al menos un formato y una
 cocina; la generación **reintenta una vez** sola y, si falla, muestra un error

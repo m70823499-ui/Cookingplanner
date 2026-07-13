@@ -29,6 +29,15 @@
   ];
   var ICON_WHITELIST = ['carrot', 'egg', 'wheat', 'milk', 'shrimp', 'drumstick', 'beef', 'onion', 'leaf', 'cookie', 'candy', 'chef-hat', 'utensils', 'fish', 'flame', 'heart', 'circle-dot'];
 
+  // Optional per-session "time available" filter (minutes; 0 = no limit).
+  var TIME_OPTIONS = [
+    { label: 'Sin apuro', min: 0 },
+    { label: '20 min', min: 20 },
+    { label: '30 min', min: 30 },
+    { label: '45 min', min: 45 }
+  ];
+  var MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
   var PREFS_KEY = 'cookingPlanner.prefs.v1';
   var HISTORY_KEY = 'cookingPlanner.history.v1';
   var SAVED_KEY = 'cookingPlanner.saved.v1';
@@ -125,6 +134,9 @@
     saved: [],                // recipes saved for later (separate from cooking history)
     recipeSource: 'fresh',    // 'fresh' | 'history' | 'saved' — where the shown recipe came from
     craving: '',              // optional per-session "I want something specific" request
+    timeLimit: null,          // optional per-session available minutes (null = no limit)
+    justCopied: false,        // transient "ingredients copied" feedback
+    statsMonth: '',           // 'YYYY-MM' currently shown in the monthly stats
     confirmDelete: null       // { type: 'history', idx } while a delete confirmation is open
   };
 
@@ -157,14 +169,15 @@
   }
   function openEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'editPrefs', onboardingError: false }); }
   function cancelEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'home', onboardingError: false }); }
-  function goHome() { setState({ view: 'home', craving: '' }); }
+  function goHome() { setState({ view: 'home', craving: '', timeLimit: null }); }
+  function setTimeLimit(min) { setState({ timeLimit: min > 0 ? min : null }); }
   function goHistory() { setState({ view: 'history' }); }
 
   // ------------------------- recipe generation -------------------------
   function startGenerate() {
     var el = document.querySelector('[data-craving]');
-    var craving = el ? el.value.trim() : (state.craving || '');
-    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh', craving: craving });
+    var craving = (el ? el.value : (state.craving || '')).trim();
+    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh', craving: craving, justCopied: false });
     generateRecipe(false);
   }
   function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, recipeSource: 'fresh' }); generateRecipe(false); }
@@ -188,8 +201,12 @@
     } else {
       lines.push('Elige un formato y una cocina de esas listas para esta receta puntual.');
     }
+    if (state.timeLimit) {
+      lines.push('Tiempo disponible: el usuario dispone de unos ' + state.timeLimit + ' minutos en total (preparación + cocción). La receta DEBE caber en ese tiempo y el campo timeMinutes debe ser menor o igual a ' + state.timeLimit + '.');
+    }
     lines.push('Devuelve exactamente este JSON (tipos exactos, sin campos extra):');
     lines.push('{"title": string, "difficulty": "Fácil"|"Intermedio"|"Avanzado", "calories": number, "timeMinutes": number, "baseServings": number, "tags": [string, string], ' +
+      '"technique": string (la técnica clave a dominar en esta receta, en 2 a 5 palabras, ej. "risotto cremoso", "sofrito", "masa de pizza"), ' +
       '"ingredients": [{"icon": string (uno de: ' + ICON_WHITELIST.join(',') + '), "label": string, "amount": number, "unit": string}], ' +
       '"steps": [{"title": string, "description": string, "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}');
     lines.push('De 5 a 9 ingredientes y de 4 a 8 pasos. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).');
@@ -247,7 +264,7 @@
     };
     var nextHistory = [entry].concat(state.history);
     persistHistory(nextHistory);
-    setState({ history: nextHistory, logOpen: false, view: 'home', craving: '' });
+    setState({ history: nextHistory, logOpen: false, view: 'home', craving: '', timeLimit: null });
   }
 
   // Delete a cooked entry from history (behind a confirmation).
@@ -268,8 +285,64 @@
   // Open a recipe object in the interactive view (adjustable servings + timers).
   function openRecipeObject(recipe, source) {
     var base = Math.max(1, Math.round(recipe.baseServings) || 2);
-    setState({ recipe: recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', recipeSource: source });
+    setState({ recipe: recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', recipeSource: source, justCopied: false });
   }
+
+  // --- shopping list: copy the (scaled) ingredients to the clipboard ---
+  function ingredientsText() {
+    var r = state.recipe;
+    if (!r) return '';
+    var lines = r.ingredients.map(function (ing) {
+      return '- ' + scaledQty(ing.amount, ing.unit, state.servings, state.baseServings) + ' ' + ing.label;
+    });
+    return r.title + ' (' + state.servings + (state.servings === 1 ? ' porción' : ' porciones') + ')\n\n' + lines.join('\n');
+  }
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    } catch (e) {}
+  }
+  function copyIngredients() {
+    var text = ingredientsText();
+    if (!text) return;
+    var done = function () {
+      setState({ justCopied: true });
+      setTimeout(function () { if (state.justCopied) setState({ justCopied: false }); }, 1600);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+      } else { fallbackCopy(text); done(); }
+    } catch (e) { fallbackCopy(text); done(); }
+  }
+
+  // --- technique video: a YouTube search link that never goes stale ---
+  function techniqueURL(recipe) {
+    var q = (recipe.technique && String(recipe.technique).trim()) ? ('cómo hacer ' + recipe.technique) : (recipe.title + ' receta paso a paso');
+    return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+  }
+
+  // --- monthly stats over the cooking history ---
+  function addMonth(ym, delta) {
+    var y = parseInt(ym.slice(0, 4), 10);
+    var m = parseInt(ym.slice(5, 7), 10) - 1 + delta;
+    y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+    return y + '-' + (m + 1 < 10 ? '0' : '') + (m + 1);
+  }
+  function monthLabel(ym) { return MESES[parseInt(ym.slice(5, 7), 10) - 1] + ' ' + ym.slice(0, 4); }
+  function currentMonth() { return new Date().toISOString().slice(0, 7); }
+  function statsFor(ym) {
+    var rows = state.history.filter(function (h) { return (h.date || '').slice(0, 7) === ym; });
+    var nuevas = rows.filter(function (h) { return !h.isRepeat; }).length;
+    var repetidas = rows.length - nuevas;
+    var avg = rows.length ? (rows.reduce(function (a, h) { return a + (h.rating || 0); }, 0) / rows.length) : 0;
+    return { total: rows.length, nuevas: nuevas, repetidas: repetidas, avg: avg };
+  }
+  function statsPrev() { setState({ statsMonth: addMonth(state.statsMonth, -1) }); }
+  function statsNext() { if (state.statsMonth < currentMonth()) setState({ statsMonth: addMonth(state.statsMonth, 1) }); }
   function openHistoryRecipe(idx) { var h = state.history[idx]; if (h && h.recipe) openRecipeObject(h.recipe, 'history'); }
   function openSavedRecipe(idx) { var s = state.saved[idx]; if (s && s.recipe) openRecipeObject(s.recipe, 'saved'); }
 
@@ -340,7 +413,11 @@
     'remove-saved': function (el) { removeSaved(Number(el.getAttribute('data-idx'))); },
     'ask-remove-history': function (el) { askRemoveHistory(Number(el.getAttribute('data-idx'))); },
     'cancel-confirm': cancelConfirm,
-    'confirm-delete': doConfirmedDelete
+    'confirm-delete': doConfirmedDelete,
+    'set-time': function (el) { setTimeLimit(Number(el.getAttribute('data-min')) || 0); },
+    'copy-ingredients': copyIngredients,
+    'stats-prev': statsPrev,
+    'stats-next': statsNext
   };
 
   function onClick(e) {
@@ -354,7 +431,11 @@
   // so the input keeps focus while typing).
   function onInput(e) {
     var el = e.target;
-    if (!el || !el.matches || !el.matches('[data-saved-search]')) return;
+    if (!el || !el.matches) return;
+    // Keep the craving text in state (no re-render) so re-rendering the home
+    // screen (e.g. picking a time chip) doesn't wipe what the user typed.
+    if (el.matches('[data-craving]')) { state.craving = el.value; return; }
+    if (!el.matches('[data-saved-search]')) return;
     var q = el.value.trim().toLowerCase();
     var cards = document.querySelectorAll('[data-savedcard]');
     var anyVisible = false;
@@ -457,6 +538,13 @@
           '<input data-craving type="text" autocomplete="off" placeholder="¿Se te antoja algo en específico? (opcional)" value="' + esc(state.craving || '') + '" style="border:none;outline:none;background:transparent;flex:1;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-primary);" />' +
         '</div>' +
         '<div style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);margin-top:8px;text-align:center;">Déjalo vacío y te recomiendo según tus gustos.</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center;">' +
+          '<span style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);width:100%;text-align:center;margin-bottom:2px;">¿Cuánto tiempo tienes?</span>' +
+          TIME_OPTIONS.map(function (o) {
+            var selected = (o.min === 0) ? (state.timeLimit == null) : (state.timeLimit === o.min);
+            return tag({ label: o.label, icon: o.min === 0 ? 'sparkles' : 'clock', selected: selected, action: 'set-time', data: { min: o.min } });
+          }).join('') +
+        '</div>' +
       '</div>' +
       button({ label: 'Generar receta', variant: 'primary', size: 'lg', icon: 'sparkles', action: 'start-generate', style: 'width:100%;max-width:360px;margin:0 auto;' }) +
       '<div style="display:flex;gap:10px;justify-content:center;margin-top:32px;flex-wrap:wrap;">' +
@@ -528,8 +616,11 @@
         '<span class="cp-ing__qty">' + esc(qty) + '</span></div>';
     }).join('');
     var ingredients = ingHeader +
-      '<div style="margin-bottom:32px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:4px 14px;">' +
-      ingRows + '</div>';
+      '<div style="margin-bottom:12px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:4px 14px;">' +
+      ingRows + '</div>' +
+      '<div style="margin-bottom:32px;">' +
+      button({ label: state.justCopied ? '¡Copiado!' : 'Copiar ingredientes', variant: 'secondary', size: 'sm', icon: state.justCopied ? 'check' : 'list', action: 'copy-ingredients' }) +
+      '</div>';
 
     var stepsHeader = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">' +
       icon('list', 17, 'var(--accent-primary)') + '<h3 style="font-size:var(--text-xl);margin:0;">Instrucciones</h3></div>';
@@ -558,7 +649,11 @@
         '<h4 class="cp-step__title">' + esc(st.title) + '</h4>' +
         '<p class="cp-step__desc">' + esc(st.description) + '</p>' + timerBlock + '</div></div>';
     }).join('');
-    var steps = stepsHeader + '<div style="margin-bottom:32px;">' + stepsHtml + '</div>';
+    var steps = stepsHeader + '<div style="margin-bottom:20px;">' + stepsHtml + '</div>';
+
+    var technique = '<a href="' + esc(techniqueURL(r)) + '" target="_blank" rel="noopener" class="cp-btn cp-btn--secondary cp-btn--md" style="text-decoration:none;margin-bottom:32px;">' +
+      icon('search', 17, 'currentColor') +
+      '<span>Ver la técnica en YouTube' + (r.technique ? ': ' + esc(r.technique) : '') + '</span></a>';
 
     var actionBar;
     if (state.recipeSource === 'history') {
@@ -579,7 +674,7 @@
     }
 
     return badges + '<h1 style="font-size:var(--text-3xl);margin:0 0 18px;">' + esc(r.title) + '</h1>' +
-      statsBar + ingredients + steps + actionBar;
+      statsBar + ingredients + steps + technique + actionBar;
   }
 
   function historyView() {
@@ -616,7 +711,38 @@
     return '<div class="cp-fade" style="max-width:640px;margin:0 auto;padding:24px 28px 40px;">' +
       '<h1 style="font-size:var(--text-3xl);margin:0 0 6px;">Historial</h1>' +
       '<p style="font-family:var(--font-body);color:var(--text-secondary);margin:0 0 24px;">' + esc(countLabel) + '</p>' +
+      (count > 0 ? statsCard() : '') +
       body + '</div>';
+  }
+
+  // Monthly stats over the history (KPI tiles + month stepper).
+  function statsCard() {
+    var ym = state.statsMonth || currentMonth();
+    var s = statsFor(ym);
+    var atCurrent = ym >= currentMonth();
+    var tile = function (value, label) {
+      return '<div class="cp-stat" style="flex:1;justify-content:center;min-width:0;">' +
+        '<div class="cp-stat__col" style="align-items:center;text-align:center;">' +
+        '<span class="cp-stat__v">' + esc(value) + '</span>' +
+        '<span class="cp-stat__l">' + esc(label) + '</span></div></div>';
+    };
+    var header = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">' +
+      iconButton({ name: 'chevron-left', size: 32, label: 'Mes anterior', action: 'stats-prev' }) +
+      '<span style="font-family:var(--font-display);font-weight:700;font-size:var(--text-md);">' + esc(monthLabel(ym)) + '</span>' +
+      iconButton({ name: 'chevron-right', size: 32, label: 'Mes siguiente', action: 'stats-next', style: atCurrent ? 'opacity:0.35;pointer-events:none;' : '' }) +
+      '</div>';
+    var tiles = s.total === 0
+      ? '<div style="text-align:center;color:var(--text-muted);font-family:var(--font-body);font-size:var(--text-sm);padding:8px 0;">Sin recetas cocinadas este mes.</div>'
+      : '<div style="display:flex;gap:10px;">' +
+          tile(s.total, s.total === 1 ? 'Cocinada' : 'Cocinadas') +
+          tile(s.nuevas + '/' + s.repetidas, 'Nueva/Repet.') +
+          tile(s.avg.toFixed(1), 'Rating prom.') +
+        '</div>';
+    return '<div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+      icon('calendar', 16, 'var(--accent-primary)') +
+      '<span class="cp-eyebrow">Este mes</span></div>' +
+      header + tiles + '</div>';
   }
 
   function savedListView() {
@@ -711,6 +837,7 @@
     state.prefs = prefs;
     state.history = Array.isArray(history) ? history : [];
     state.saved = Array.isArray(saved) ? saved : [];
+    state.statsMonth = currentMonth();
     state.view = prefs ? 'home' : 'onboarding';
     state.draft = prefs ? JSON.parse(JSON.stringify(prefs)) : blankDraft();
     var app = document.getElementById('app');
