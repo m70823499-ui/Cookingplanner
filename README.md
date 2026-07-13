@@ -21,6 +21,11 @@ API vive en el servidor y **el navegador nunca la ve ni te la pide**.
 3. **Vista interactiva**: ingredientes con **porciones ajustables** (las
    cantidades escalan solas), pasos numerados y **timer por paso** cuando hay
    espera o cocción.
+3b. **Guardar para después** (marcador): si una receta te interesa pero no la vas
+   a cocinar ahora, tócala en el marcador y queda en la sección **Guardadas**
+   (separada del historial de cocinado). Ahí puedes **buscarla** por nombre o
+   cocina y, cuando quieras, abrirla para **Cocinar** (y recién ahí registrarla).
+   Es aparte del historial para no ensuciar el registro real de lo cocinado.
 4. **Registrar en el historial**: "Ya la cociné" + rating 1–5 (obligatorio) +
    observación opcional. Solo entra al historial lo que confirmas. Cada registro
    guarda la **receta completa**: desde el historial puedes **volver a abrirla**

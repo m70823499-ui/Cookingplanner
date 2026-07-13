@@ -31,6 +31,7 @@
 
   var PREFS_KEY = 'cookingPlanner.prefs.v1';
   var HISTORY_KEY = 'cookingPlanner.history.v1';
+  var SAVED_KEY = 'cookingPlanner.saved.v1';
 
   // ------------------------- helpers -------------------------
   function blankDraft() {
@@ -121,12 +122,14 @@
     timers: {},
     logOpen: false,
     ratingDraft: 0,
-    savedView: false          // true when re-opening a recipe saved in history
+    saved: [],                // recipes saved for later (separate from cooking history)
+    recipeSource: 'fresh'     // 'fresh' | 'history' | 'saved' — where the shown recipe came from
   };
 
   function setState(partial) { Object.assign(state, partial); render(); }
   function persistPrefs(p) { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) {} }
   function persistHistory(h) { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch (e) {} }
+  function persistSaved(s) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(s)); } catch (e) {} }
 
   // ------------------------- draft field toggles -------------------------
   function toggleFormat(v) {
@@ -157,10 +160,10 @@
 
   // ------------------------- recipe generation -------------------------
   function startGenerate() {
-    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, savedView: false });
+    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh' });
     generateRecipe(false);
   }
-  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, savedView: false }); generateRecipe(false); }
+  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, recipeSource: 'fresh' }); generateRecipe(false); }
   function manualRetry() { setState({ status: 'loading' }); generateRecipe(false); }
 
   function buildPrompt() {
@@ -236,13 +239,31 @@
     setState({ history: nextHistory, logOpen: false, view: 'home' });
   }
 
-  // Re-open a recipe stored in history (adjustable servings + timers still work).
-  function openSaved(idx) {
-    var h = state.history[idx];
-    if (!h || !h.recipe) return;
-    var base = Math.max(1, Math.round(h.recipe.baseServings) || 2);
-    setState({ recipe: h.recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', savedView: true });
+  // Open a recipe object in the interactive view (adjustable servings + timers).
+  function openRecipeObject(recipe, source) {
+    var base = Math.max(1, Math.round(recipe.baseServings) || 2);
+    setState({ recipe: recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', recipeSource: source });
   }
+  function openHistoryRecipe(idx) { var h = state.history[idx]; if (h && h.recipe) openRecipeObject(h.recipe, 'history'); }
+  function openSavedRecipe(idx) { var s = state.saved[idx]; if (s && s.recipe) openRecipeObject(s.recipe, 'saved'); }
+
+  // ------------------------- saved for later (bookmark) -------------------------
+  function normTitle(t) { return (t || '').trim().toLowerCase(); }
+  function isRecipeSaved(recipe) {
+    return !!recipe && state.saved.some(function (s) { return normTitle(s.recipe.title) === normTitle(recipe.title); });
+  }
+  function toggleSaveCurrent() {
+    if (!state.recipe) return;
+    var t = normTitle(state.recipe.title);
+    var exists = state.saved.some(function (s) { return normTitle(s.recipe.title) === t; });
+    var next = exists
+      ? state.saved.filter(function (s) { return normTitle(s.recipe.title) !== t; })
+      : [{ id: Date.now(), savedDate: new Date().toISOString().slice(0, 10), recipe: JSON.parse(JSON.stringify(state.recipe)) }].concat(state.saved);
+    persistSaved(next);
+    setState({ saved: next });
+  }
+  function removeSaved(idx) { var next = state.saved.slice(); next.splice(idx, 1); persistSaved(next); setState({ saved: next }); }
+  function goSaved() { setState({ view: 'saved' }); }
 
   // ------------------------- timers tick -------------------------
   function tick() {
@@ -255,9 +276,9 @@
         changed = true;
       }
     });
-    // Re-render only when a timer changed and the log modal (with its textarea)
-    // isn't open, to avoid stealing focus from the note field.
-    if (changed && !state.logOpen) render();
+    // Re-render only while actually viewing a recipe (timers only show there)
+    // and the log modal isn't open — avoids wiping the saved-search box / note field.
+    if (changed && state.view === 'recipe' && !state.logOpen) render();
   }
 
   // ------------------------- action dispatch -------------------------
@@ -283,7 +304,11 @@
     'close-log': closeLog,
     'set-rating': function (el) { setRating(Number(el.getAttribute('data-val'))); },
     'save-log': saveLog,
-    'view-saved': function (el) { openSaved(Number(el.getAttribute('data-idx'))); }
+    'go-saved': goSaved,
+    'toggle-save': toggleSaveCurrent,
+    'view-history': function (el) { openHistoryRecipe(Number(el.getAttribute('data-idx'))); },
+    'view-saved': function (el) { openSavedRecipe(Number(el.getAttribute('data-idx'))); },
+    'remove-saved': function (el) { removeSaved(Number(el.getAttribute('data-idx'))); }
   };
 
   function onClick(e) {
@@ -293,15 +318,35 @@
     if (fn) { e.preventDefault(); fn(el); }
   }
 
+  // Live filter for the saved-recipes search — filters in-DOM (no re-render,
+  // so the input keeps focus while typing).
+  function onInput(e) {
+    var el = e.target;
+    if (!el || !el.matches || !el.matches('[data-saved-search]')) return;
+    var q = el.value.trim().toLowerCase();
+    var cards = document.querySelectorAll('[data-savedcard]');
+    var anyVisible = false;
+    cards.forEach(function (c) {
+      var show = !q || (c.getAttribute('data-hay') || '').indexOf(q) !== -1;
+      c.style.display = show ? '' : 'none';
+      if (show) anyVisible = true;
+    });
+    var empty = document.querySelector('[data-saved-empty]');
+    if (empty) empty.style.display = anyVisible ? 'none' : 'block';
+  }
+
   // ------------------------- views -------------------------
   function topBar(view) {
-    var isHome = view === 'home', isRecipe = view === 'recipe', isHistory = view === 'history', isEditPrefs = view === 'editPrefs';
-    if (!(isHome || isRecipe || isHistory || isEditPrefs)) return '';
-    var backAction = (isRecipe && state.savedView) ? 'go-history' : 'go-home';
+    var isHome = view === 'home', isRecipe = view === 'recipe', isHistory = view === 'history', isEditPrefs = view === 'editPrefs', isSaved = view === 'saved';
+    if (!(isHome || isRecipe || isHistory || isEditPrefs || isSaved)) return '';
+    var backAction = 'go-home';
+    if (isRecipe && state.recipeSource === 'history') backAction = 'go-history';
+    else if (isRecipe && state.recipeSource === 'saved') backAction = 'go-saved';
     return '<div class="cp-topbar">' +
       iconButton({ name: 'arrow-left', label: 'Volver', action: backAction, hidden: isHome }) +
       '<div class="cp-brand">' + icon('chef-hat', 20, 'var(--accent-primary)') +
       '<span class="cp-brand__name">Cooking Planner</span></div>' +
+      iconButton({ name: 'bookmark', label: 'Guardadas', active: isSaved, action: 'go-saved' }) +
       iconButton({ name: 'list', label: 'Historial', active: isHistory, action: 'go-history' }) +
       iconButton({ name: 'settings', label: 'Preferencias', active: isEditPrefs, action: 'open-prefs' }) +
       '</div>';
@@ -404,8 +449,13 @@
   function recipeReady() {
     var r = state.recipe;
     var tagsHtml = (r.tags || []).map(function (t) { return badge({ label: t, tone: 'neutral' }); }).join('');
-    var badges = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">' +
-      badge({ label: r.difficulty || '', tone: 'accent', icon: 'chef-hat' }) + tagsHtml + '</div>';
+    var bookmarkBtn = (state.recipeSource === 'fresh')
+      ? iconButton({ name: 'bookmark', size: 38, label: 'Guardar para después', active: isRecipeSaved(r), action: 'toggle-save' })
+      : '';
+    var badges = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      badge({ label: r.difficulty || '', tone: 'accent', icon: 'chef-hat' }) + tagsHtml + '</div>' +
+      bookmarkBtn + '</div>';
 
     var stats = [
       { icon: 'flame', value: r.calories, label: 'Calorías' },
@@ -471,15 +521,23 @@
     }).join('');
     var steps = stepsHeader + '<div style="margin-bottom:32px;">' + stepsHtml + '</div>';
 
-    var actionBar = state.savedView
-      ? '<div class="cp-actionbar">' +
+    var actionBar;
+    if (state.recipeSource === 'history') {
+      actionBar = '<div class="cp-actionbar">' +
         button({ label: 'Volver al historial', variant: 'secondary', icon: 'arrow-left', action: 'go-history', style: 'flex:1;max-width:320px;' }) +
         button({ label: 'Registrar de nuevo', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
-        '</div>'
-      : '<div class="cp-actionbar">' +
+        '</div>';
+    } else if (state.recipeSource === 'saved') {
+      actionBar = '<div class="cp-actionbar">' +
+        button({ label: 'Quitar de guardadas', variant: 'secondary', icon: 'x', action: 'toggle-save', style: 'flex:1;max-width:320px;' }) +
+        button({ label: 'Ya la cociné', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
+        '</div>';
+    } else {
+      actionBar = '<div class="cp-actionbar">' +
         button({ label: 'No me convence, otra', variant: 'secondary', icon: 'refresh-cw', action: 'regenerate', style: 'flex:1;max-width:320px;' }) +
         button({ label: 'Ya la cociné', variant: 'primary', icon: 'check', action: 'open-log', style: 'flex:1;max-width:320px;' }) +
         '</div>';
+    }
 
     return badges + '<h1 style="font-size:var(--text-3xl);margin:0 0 18px;">' + esc(r.title) + '</h1>' +
       statsBar + ingredients + steps + actionBar;
@@ -501,7 +559,7 @@
         }).join('');
         var note = h.note ? '<p style="margin:6px 0 0;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-normal);">' + esc(h.note) + '</p>' : '';
         var viewBtn = h.recipe
-          ? '<div style="margin-top:12px;">' + button({ label: 'Ver receta', variant: 'secondary', size: 'sm', icon: 'list', action: 'view-saved', data: { idx: i } }) + '</div>'
+          ? '<div style="margin-top:12px;">' + button({ label: 'Ver receta', variant: 'secondary', size: 'sm', icon: 'list', action: 'view-history', data: { idx: i } }) + '</div>'
           : '';
         return '<div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:12px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
@@ -517,6 +575,45 @@
       '<h1 style="font-size:var(--text-3xl);margin:0 0 6px;">Historial</h1>' +
       '<p style="font-family:var(--font-body);color:var(--text-secondary);margin:0 0 24px;">' + esc(countLabel) + '</p>' +
       body + '</div>';
+  }
+
+  function savedListView() {
+    var count = state.saved.length;
+    var countLabel = count === 0 ? 'Sin recetas guardadas' : (count + (count === 1 ? ' receta guardada' : ' recetas guardadas'));
+    var searchBox = count > 0
+      ? '<div style="display:flex;align-items:center;gap:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-pill);padding:10px 16px;margin-bottom:20px;box-shadow:var(--shadow-xs);">' +
+        icon('search', 16, 'var(--text-muted)') +
+        '<input data-saved-search type="text" placeholder="Buscar por nombre o cocina" autocomplete="off" spellcheck="false" style="border:none;outline:none;background:transparent;flex:1;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text-primary);" />' +
+        '</div>'
+      : '';
+    var body;
+    if (count === 0) {
+      body = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:70px 20px;color:var(--text-muted);text-align:center;">' +
+        icon('bookmark', 28, 'var(--text-muted)') +
+        'No tienes recetas guardadas. Cuando generes una que te interese pero no vayas a cocinar ahora, toca el marcador para guardarla y cocinarla después.</div>';
+    } else {
+      var cards = state.saved.map(function (s, i) {
+        var r = s.recipe;
+        var tagsHtml = badge({ label: r.difficulty || '', tone: 'accent', icon: 'chef-hat' }) +
+          (r.tags || []).map(function (t) { return badge({ label: t, tone: 'neutral' }); }).join('');
+        var hay = normTitle(r.title) + ' ' + (r.tags || []).join(' ').toLowerCase();
+        return '<div data-savedcard data-hay="' + esc(hay) + '" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:12px;">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
+          '<span style="font-family:var(--font-display);font-size:var(--text-md);font-weight:700;">' + esc(r.title) + '</span>' +
+          iconButton({ name: 'x', size: 30, label: 'Quitar de guardadas', action: 'remove-saved', data: { idx: i } }) + '</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">' + tagsHtml + '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+          button({ label: 'Cocinar', variant: 'primary', size: 'sm', icon: 'utensils', action: 'view-saved', data: { idx: i } }) +
+          '<span style="font-family:var(--font-body);font-size:var(--text-xs);color:var(--text-muted);">Guardada ' + esc(s.savedDate) + '</span>' +
+          '</div></div>';
+      }).join('');
+      body = cards +
+        '<div data-saved-empty style="display:none;padding:40px 20px;text-align:center;color:var(--text-muted);font-family:var(--font-body);">Ninguna receta coincide con tu búsqueda.</div>';
+    }
+    return '<div class="cp-fade" style="max-width:640px;margin:0 auto;padding:24px 28px 40px;">' +
+      '<h1 style="font-size:var(--text-3xl);margin:0 0 6px;">Guardadas</h1>' +
+      '<p style="font-family:var(--font-body);color:var(--text-secondary);margin:0 0 24px;">' + esc(countLabel) + '</p>' +
+      searchBox + body + '</div>';
   }
 
   function logModal() {
@@ -548,6 +645,7 @@
     else if (view === 'home') main = homeView();
     else if (view === 'recipe') main = recipeView();
     else if (view === 'history') main = historyView();
+    else if (view === 'saved') main = savedListView();
 
     document.getElementById('app').innerHTML = topBar(view) + main + logModal();
   }
@@ -556,11 +654,15 @@
   function init() {
     var prefs = loadJSON(PREFS_KEY, null);
     var history = loadJSON(HISTORY_KEY, []);
+    var saved = loadJSON(SAVED_KEY, []);
     state.prefs = prefs;
     state.history = Array.isArray(history) ? history : [];
+    state.saved = Array.isArray(saved) ? saved : [];
     state.view = prefs ? 'home' : 'onboarding';
     state.draft = prefs ? JSON.parse(JSON.stringify(prefs)) : blankDraft();
-    document.getElementById('app').addEventListener('click', onClick);
+    var app = document.getElementById('app');
+    app.addEventListener('click', onClick);
+    app.addEventListener('input', onInput);
     setInterval(tick, 1000);
     render();
   }
