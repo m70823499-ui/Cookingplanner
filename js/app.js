@@ -251,6 +251,22 @@
       setState({ recipe: data, baseServings: baseServings, servings: baseServings, status: 'ready', checked: {}, timers: {} });
     } catch (e) {
       if (!isRetry) { generateRecipe(true); return; }
+      // La API falló (sin clave, sin saldo o sin conexión): en vez de mostrar
+      // un error, servimos una receta del recetario integrado, acorde a lo que
+      // pidió el usuario. Así la app siempre entrega una receta real y gratis.
+      if (window.RecipeBank) {
+        var local = window.RecipeBank.pick({
+          mealType: state.mealType,
+          timeLimit: state.timeLimit,
+          craving: state.craving,
+          prefs: state.prefs
+        });
+        if (local) {
+          var lb = Math.max(1, Math.round(local.baseServings) || 2);
+          setState({ recipe: local, baseServings: lb, servings: lb, status: 'ready', checked: {}, timers: {} });
+          return;
+        }
+      }
       setState({ status: 'error', errorMsg: (e && e.message) || '' });
     }
   }
