@@ -147,6 +147,7 @@
     mealType: '',             // optional per-session meal type ('' = any)
     timeLimit: null,          // optional per-session available minutes (null = no limit)
     justCopied: false,        // transient "ingredients copied" feedback
+    recipeNote: '',           // honesty note when the free recipe bank didn't really match the craving
     statsMonth: '',           // 'YYYY-MM' currently shown in the monthly stats
     confirmDelete: null,      // { type: 'history', idx } while a delete confirmation is open
     glosarioFrom: 'home'      // view to return to when leaving "Básicos de cocina"
@@ -192,10 +193,10 @@
   function startGenerate() {
     var el = document.querySelector('[data-craving]');
     var craving = (el ? el.value : (state.craving || '')).trim();
-    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh', craving: craving, justCopied: false });
+    setState({ view: 'recipe', status: 'loading', recipe: null, checked: {}, timers: {}, servings: state.baseServings || 2, recipeSource: 'fresh', craving: craving, justCopied: false, recipeNote: '' });
     generateRecipe(false);
   }
-  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, recipeSource: 'fresh' }); generateRecipe(false); }
+  function regenerate() { setState({ status: 'loading', recipe: null, checked: {}, timers: {}, recipeSource: 'fresh', recipeNote: '' }); generateRecipe(false); }
   function manualRetry() { setState({ status: 'loading' }); generateRecipe(false); }
 
   function buildPrompt() {
@@ -248,22 +249,29 @@
       var text = await window.CookingAPI.complete(buildPrompt());
       var data = parseRecipe(text);
       var baseServings = Math.max(1, Math.round(data.baseServings) || 2);
-      setState({ recipe: data, baseServings: baseServings, servings: baseServings, status: 'ready', checked: {}, timers: {} });
+      setState({ recipe: data, baseServings: baseServings, servings: baseServings, status: 'ready', checked: {}, timers: {}, recipeNote: '' });
     } catch (e) {
       if (!isRetry) { generateRecipe(true); return; }
       // La API falló (sin clave, sin saldo o sin conexión): en vez de mostrar
       // un error, servimos una receta del recetario integrado, acorde a lo que
       // pidió el usuario. Así la app siempre entrega una receta real y gratis.
       if (window.RecipeBank) {
-        var local = window.RecipeBank.pick({
+        var picked = window.RecipeBank.pick({
           mealType: state.mealType,
           timeLimit: state.timeLimit,
           craving: state.craving,
           prefs: state.prefs
         });
-        if (local) {
+        if (picked) {
+          var local = picked.recipe;
           var lb = Math.max(1, Math.round(local.baseServings) || 2);
-          setState({ recipe: local, baseServings: lb, servings: lb, status: 'ready', checked: {}, timers: {} });
+          // Sé honesto: si pediste algo puntual y el recetario gratis (fijo,
+          // sin IA) no lo tiene de verdad, dilo en vez de servir cualquier
+          // cosa como si coincidiera con lo pedido.
+          var note = (state.craving && state.craving.trim() && !picked.matchedCraving)
+            ? 'El recetario gratis no tiene "' + state.craving.trim() + '" todavía, así que te sugerimos esta receta. Activa la IA gratuita (Gemini) para pedir justo lo que se te antoje.'
+            : '';
+          setState({ recipe: local, baseServings: lb, servings: lb, status: 'ready', checked: {}, timers: {}, recipeNote: note });
           return;
         }
       }
@@ -654,6 +662,11 @@
 
   function recipeReady() {
     var r = state.recipe;
+    var noteBanner = (state.recipeSource === 'fresh' && state.recipeNote)
+      ? '<div style="display:flex;align-items:flex-start;gap:8px;color:var(--accent-secondary-hover);font-size:var(--text-sm);font-weight:600;background:var(--olive-100);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:14px;">' +
+        icon('sparkles', 16, 'var(--accent-secondary-hover)') +
+        '<span style="flex:1;">' + esc(state.recipeNote) + '</span></div>'
+      : '';
     var tagsHtml = (r.tags || []).map(function (t) { return badge({ label: t, tone: 'neutral' }); }).join('');
     var bookmarkBtn = (state.recipeSource === 'fresh')
       ? iconButton({ name: 'bookmark', size: 38, label: 'Guardar para después', active: isRecipeSaved(r), action: 'toggle-save' })
@@ -756,7 +769,7 @@
         '</div>';
     }
 
-    return badges + '<h1 style="font-size:var(--text-3xl);margin:0 0 18px;">' + esc(r.title) + '</h1>' +
+    return noteBanner + badges + '<h1 style="font-size:var(--text-3xl);margin:0 0 18px;">' + esc(r.title) + '</h1>' +
       statsBar + ingredients + steps + technique + actionBar;
   }
 
