@@ -101,6 +101,9 @@ module.exports = async function handler(req, res) {
     var text = geminiKey ? await callGemini(geminiKey, prompt) : await callAnthropic(anthropicKey, prompt);
     res.status(200).json({ text: text });
   } catch (e) {
+    // Se registra en los logs de Vercel (Runtime Logs) para poder diagnosticar
+    // fallos del proveedor sin exponer la clave ni la respuesta completa.
+    console.error('generate.js provider error:', (e && e.message) || e);
     res.status(e && e.httpStatus ? e.httpStatus : 502).json({ error: (e && e.message) || 'No se pudo contactar al proveedor de IA.' });
   }
 };
