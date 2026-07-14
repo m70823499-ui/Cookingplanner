@@ -70,8 +70,12 @@ subcarpeta.
 2. En [vercel.com](https://vercel.com) -> **Add New... -> Project** e importa el repo.
 3. (Opcional) En **Environment Variables** agrega un proveedor de IA — usa el
    primero que configures:
-   - `GEMINI_API_KEY` — clave **gratuita** de
-     [Google AI Studio](https://aistudio.google.com/apikey) (recomendado).
+   - `GROQ_API_KEY` — clave **gratuita y sin tarjeta** de
+     [console.groq.com/keys](https://console.groq.com/keys) (recomendado).
+   - `GEMINI_API_KEY` — clave de
+     [Google AI Studio](https://aistudio.google.com/apikey). Es gratis, pero
+     Google exige vincular una tarjeta de facturación para desbloquear la
+     cuota gratis (no te cobra dentro del límite, pero sí pide el dato).
    - `ANTHROPIC_API_KEY` — clave de
      [console.anthropic.com](https://console.anthropic.com/settings/keys) (de pago).
 4. **Deploy**. Vercel sirve la app y usa `api/generate.js` como backend.
@@ -79,8 +83,8 @@ subcarpeta.
 > **La app funciona aunque NO configures ninguna clave.** En ese caso (o si el
 > proveedor falla o se queda sin saldo) cae automáticamente en el **recetario
 > integrado** (`js/recipes.js`): recetas reales, listas y sin costo. Configurar
-> `GEMINI_API_KEY` desbloquea generación con IA ilimitada y personalizada, gratis
-> dentro de la capa gratuita de Google.
+> `GROQ_API_KEY` desbloquea generación con IA ilimitada y personalizada, gratis
+> y sin tarjeta, dentro de la cuota gratuita de Groq.
 
 La clave queda solo en Vercel; el sitio nunca la expone.
 
@@ -116,7 +120,7 @@ El servidor local sirve la app **y** hace de proxy hacia la API (mismo endpoint
 ├── index.html        Shell de la página
 ├── server.js         Backend local (sirve la app + proxy /api/generate). Node 18+, sin dependencias
 ├── api/
-│   └── generate.js   Función serverless de Vercel (proxy a Gemini o Anthropic)
+│   └── generate.js   Función serverless de Vercel (proxy a Groq, Gemini o Anthropic)
 ├── package.json      Metadatos + script "start"
 ├── css/
 │   ├── tokens.css    Tokens del design system + dark mode

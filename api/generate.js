@@ -1,20 +1,24 @@
 /* Vercel serverless function: POST /api/generate  { prompt } -> { text }
    Genera la receta desde el servidor, sin exponer ninguna clave al navegador.
 
-   Soporta dos proveedores; usa el primero que esté configurado:
-   1) Google Gemini  -> variable GEMINI_API_KEY   (tiene capa GRATUITA)
-   2) Anthropic       -> variable ANTHROPIC_API_KEY (de pago)
+   Soporta tres proveedores; usa el primero que esté configurado:
+   1) Groq     -> variable GROQ_API_KEY      (gratis, NO pide tarjeta)
+   2) Gemini   -> variable GEMINI_API_KEY    (gratis, pero Google exige vincular
+                  una tarjeta de facturación para desbloquear la cuota gratis)
+   3) Anthropic -> variable ANTHROPIC_API_KEY (de pago)
 
-   Configura una de esas dos en Environment Variables del proyecto en Vercel.
+   Configura una de esas tres en Environment Variables del proyecto en Vercel.
    Si NINGUNA está configurada (o el proveedor falla), esta función devuelve un
    error y el navegador cae automáticamente en el recetario integrado (gratis),
    así que la app nunca se queda sin receta. */
 
 'use strict';
 
+var GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+var GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+var GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 var ANTHROPIC_MODEL = process.env.COOKING_MODEL || 'claude-opus-4-8';
 var ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
-var GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 function readBody(req) {
   // Vercel usually pre-parses JSON bodies, but fall back to reading the stream.
@@ -27,7 +31,31 @@ function readBody(req) {
   });
 }
 
-// --- Google Gemini (free tier) ---
+// --- Groq (free tier, no card required; OpenAI-compatible chat API) ---
+async function callGroq(key, prompt) {
+  var upstream = await fetch(GROQ_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': 'Bearer ' + key
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 2048
+    })
+  });
+  var data = await upstream.json();
+  if (!upstream.ok) {
+    var qmsg = (data && data.error && data.error.message) || ('Error de Groq (' + upstream.status + ').');
+    var e = new Error(qmsg); e.httpStatus = 502; throw e;
+  }
+  var choice = (data.choices || [])[0];
+  return (choice && choice.message && choice.message.content) || '';
+}
+
+// --- Google Gemini (free tier; requires a billing account linked on Google's side) ---
 async function callGemini(key, prompt) {
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
     encodeURIComponent(GEMINI_MODEL) + ':generateContent?key=' + encodeURIComponent(key);
@@ -45,7 +73,7 @@ async function callGemini(key, prompt) {
     var gmsg = (data && data.error && data.error.message) || ('Error de Gemini (' + upstream.status + ').');
     var e = new Error(gmsg); e.httpStatus = 502; throw e;
   }
-  var cand = (data.candidates && data.candidates[0]) || null;
+  var cand = (data.candidates || [])[0];
   var parts = (cand && cand.content && cand.content.parts) || [];
   var text = parts.map(function (p) { return p.text || ''; }).join('');
   return text;
@@ -81,11 +109,12 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  var groqKey = process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim();
   var geminiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim();
   var anthropicKey = process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY.trim();
-  if (!geminiKey && !anthropicKey) {
+  if (!groqKey && !geminiKey && !anthropicKey) {
     // Sin proveedor configurado: el cliente usará el recetario integrado.
-    res.status(500).json({ error: 'No hay proveedor de IA configurado (GEMINI_API_KEY o ANTHROPIC_API_KEY).' });
+    res.status(500).json({ error: 'No hay proveedor de IA configurado (GROQ_API_KEY, GEMINI_API_KEY o ANTHROPIC_API_KEY).' });
     return;
   }
 
@@ -97,8 +126,10 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Se prefiere Gemini por su capa gratuita; si no está, se usa Anthropic.
-    var text = geminiKey ? await callGemini(geminiKey, prompt) : await callAnthropic(anthropicKey, prompt);
+    // Se prefiere Groq (gratis, sin tarjeta); luego Gemini; luego Anthropic.
+    var text = groqKey ? await callGroq(groqKey, prompt)
+      : geminiKey ? await callGemini(geminiKey, prompt)
+      : await callAnthropic(anthropicKey, prompt);
     res.status(200).json({ text: text });
   } catch (e) {
     // Se registra en los logs de Vercel (Runtime Logs) para poder diagnosticar
