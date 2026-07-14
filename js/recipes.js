@@ -309,6 +309,14 @@
     }
     if (!pool.length) pool = base;
 
+    // Avoid repeating a recipe the caller already showed recently (e.g. "otra")
+    // when possible, not just the very last one served from this module.
+    var exclude = (criteria.excludeTitles || []).map(norm);
+    if (exclude.length) {
+      var fresh = pool.filter(function (r) { return exclude.indexOf(norm(r.title)) === -1; });
+      if (fresh.length) pool = fresh;
+    }
+
     // Avoid repeating the exact same recipe two times in a row when possible.
     var choices = pool.filter(function (r) { return r.title !== lastTitle; });
     if (!choices.length) choices = pool;
