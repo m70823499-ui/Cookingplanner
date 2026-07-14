@@ -243,11 +243,23 @@
     return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
+  // Filler words that shouldn't count toward "how many words matched" \u2014 they
+  // inflate the word count without saying anything about the dish, which
+  // unfairly raised the match bar (e.g. "quiero pasta con tomate" has 2
+  // content words and 2 filler words; only the content words should matter).
+  var STOPWORDS = ['quiero', 'quisiera', 'algo', 'con', 'de', 'del', 'la', 'el', 'los', 'las', 'una', 'un',
+    'en', 'se', 'me', 'te', 'antoja', 'porfa', 'favor', 'plato', 'comida', 'receta', 'hoy', 'para', 'que',
+    'y', 'o', 'una', 'unas', 'unos', 'algun', 'alguna', 'tengo', 'ganas', 'por'];
+
   var lastTitle = '';
 
   // Pick the recipe that best matches what the user asked for. Never fails:
   // it relaxes filters until at least one recipe qualifies, so the app always
-  // has something real to show. Returns a deep copy (safe to mutate/store).
+  // has something real to show. Returns { recipe, matchedCraving }: matchedCraving
+  // is false when a craving was given but the (small, fixed) catalog doesn't
+  // really have it — callers should be honest about that instead of pretending
+  // a weak keyword hit ("arroz" matching "arroz con pollo" for a request of
+  // "arroz frito asiático") is the dish the user asked for.
   function pick(criteria) {
     criteria = criteria || {};
     var prefs = criteria.prefs || {};
@@ -270,8 +282,9 @@
       var byTime = pool.filter(function (r) { return r.timeMinutes <= limit; });
       if (byTime.length) pool = byTime;
     }
+    var matchedCraving = false;
     if (craving) {
-      var words = craving.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2; });
+      var words = craving.split(/[^a-z0-9]+/).filter(function (w) { return w.length > 2 && STOPWORDS.indexOf(w) === -1; });
       if (words.length) {
         var scored = pool.map(function (r) {
           var hay = norm(r.title + ' ' + (r.tags || []).join(' ') + ' ' + (r._kw || []).join(' '));
@@ -279,12 +292,19 @@
           words.forEach(function (w) { if (hay.indexOf(w) !== -1) score++; });
           return { r: r, score: score };
         });
-        var hits = scored.filter(function (x) { return x.score > 0; });
+        // Require most of the words to hit, not just one coincidental keyword
+        // — otherwise "arroz frito asiático" (3 words) would confidently match
+        // "Arroz con pollo" off a single shared word ("arroz").
+        var required = Math.max(1, Math.ceil(words.length * 0.6));
+        var hits = scored.filter(function (x) { return x.score >= required; });
         if (hits.length) {
           hits.sort(function (a, b) { return b.score - a.score; });
           var top = hits[0].score;
           pool = hits.filter(function (x) { return x.score === top; }).map(function (x) { return x.r; });
+          matchedCraving = true;
         }
+        // No strong match: keep the meal/time-filtered pool as-is and be
+        // upfront with the caller that the craving wasn't actually honored.
       }
     }
     if (!pool.length) pool = base;
@@ -294,7 +314,7 @@
     if (!choices.length) choices = pool;
     var chosen = choices[Math.floor(Math.random() * choices.length)];
     lastTitle = chosen.title;
-    return JSON.parse(JSON.stringify(chosen));
+    return { recipe: JSON.parse(JSON.stringify(chosen)), matchedCraving: matchedCraving };
   }
 
   window.RecipeBank = { pick: pick, all: RECIPES };
