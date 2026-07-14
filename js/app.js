@@ -161,7 +161,8 @@
     recipeNote: '',           // honesty note when the free recipe bank didn't really match the craving
     statsMonth: '',           // 'YYYY-MM' currently shown in the monthly stats
     confirmDelete: null,      // { type: 'history', idx } while a delete confirmation is open
-    glosarioFrom: 'home'      // view to return to when leaving "Básicos de cocina"
+    glosarioFrom: 'home',     // view to return to when leaving "Básicos de cocina"
+    recentTitles: []          // titles shown recently in this session, to avoid "otra" repeating the same dish
   };
 
   function setState(partial) { Object.assign(state, partial); render(); }
@@ -193,7 +194,14 @@
   }
   function openEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'editPrefs', onboardingError: false }); }
   function cancelEditPrefs() { setState({ draft: JSON.parse(JSON.stringify(state.prefs)), view: 'home', onboardingError: false }); }
-  function goHome() { setState({ view: 'home', craving: '', timeLimit: null, mealType: '' }); }
+  function goHome() { setState({ view: 'home', craving: '', timeLimit: null, mealType: '', recentTitles: [] }); }
+  function rememberTitle(title) {
+    if (!title) return;
+    var list = state.recentTitles.filter(function (t) { return t !== title; });
+    list.push(title);
+    while (list.length > 4) list.shift();
+    state.recentTitles = list;
+  }
   function setTimeLimit(min) { setState({ timeLimit: min > 0 ? min : null }); }
   function setMeal(v) { setState({ mealType: v || '' }); }
   function goGlosario() { setState({ view: 'glosario', glosarioFrom: (state.view === 'glosario' ? (state.glosarioFrom || 'home') : state.view) }); }
@@ -234,6 +242,10 @@
     if (state.mealType) {
       lines.push('Tipo de plato: el usuario quiere un ' + state.mealType + '. La receta debe ser apropiada para ' + state.mealType + ' (respetando siempre picante, fruta y nivel de habilidad).');
     }
+    if (state.recentTitles && state.recentTitles.length) {
+      lines.push('El usuario ya vio y descartó estas recetas en esta misma sesión, así que NO las repitas ni generes una variante cercana (cambia de proteína/ingrediente principal y de técnica, no solo el nombre): ' +
+        state.recentTitles.map(function (t) { return '"' + t + '"'; }).join(', ') + '.');
+    }
     lines.push('CALIDAD DE LOS PASOS (lo más importante): la persona es principiante y debe poder cocinar el plato SIN conocimientos previos. Cada "description" tiene que ser clara, completa y autocontenida:');
     lines.push('- Explica CÓMO se hace cada acción, no solo qué hacer. Ejemplos: cómo cortar (forma y tamaño concreto, p. ej. "corta la cebolla en cubos pequeños de ~0,5 cm"); a qué fuego (bajo/medio/alto); cuánto tiempo aproximado; y qué señal buscar (p. ej. "sofríe a fuego medio 5–7 min hasta que esté transparente y suelte aroma, sin que se dore").');
     lines.push('- Incluye cantidades, temperaturas y tiempos concretos cuando importen, y algún truco práctico. Prohibido dejar pasos vagos como "cocina la cebolla" o "sofríe la cebolla" sin explicar el cómo.');
@@ -260,6 +272,7 @@
       var text = await window.CookingAPI.complete(buildPrompt());
       var data = parseRecipe(text);
       var baseServings = Math.max(1, Math.round(data.baseServings) || 2);
+      rememberTitle(data.title);
       setState({ recipe: data, baseServings: baseServings, servings: 2, status: 'ready', checked: {}, timers: {}, recipeNote: '' });
     } catch (e) {
       if (!isRetry) { generateRecipe(true); return; }
@@ -271,7 +284,8 @@
           mealType: state.mealType,
           timeLimit: state.timeLimit,
           craving: state.craving,
-          prefs: state.prefs
+          prefs: state.prefs,
+          excludeTitles: state.recentTitles
         });
         if (picked) {
           var local = picked.recipe;
@@ -282,6 +296,7 @@
           var note = (state.craving && state.craving.trim() && !picked.matchedCraving)
             ? 'El recetario gratis no tiene "' + state.craving.trim() + '" todavía, así que te sugerimos esta receta. Activa la IA gratuita (Gemini) para pedir justo lo que se te antoje.'
             : '';
+          rememberTitle(local.title);
           setState({ recipe: local, baseServings: lb, servings: 2, status: 'ready', checked: {}, timers: {}, recipeNote: note });
           return;
         }
