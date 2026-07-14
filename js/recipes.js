@@ -236,6 +236,118 @@
         { title: 'Comprueba el punto', description: 'Inserta un palillo en el centro: debe salir apenas húmedo, no con masa cruda pegada. Si sale crudo, dale 10-15 segundos más. Cuidado de no pasarte o queda seco.', waitSeconds: 0 },
         { title: 'Reposa y disfruta', description: 'Deja reposar 1 minuto (la taza quema). Cómelo tibio directo de la taza; queda genial con un poco de leche fría al lado.', waitSeconds: 60 }
       ]
+    },
+    {
+      _meal: ['almuerzo', 'cena'], _spicy: false, _fruit: false,
+      _kw: ['risotto', 'hongos', 'champiñones', 'italiana', 'cremoso', 'arroz'],
+      title: 'Risotto de hongos',
+      difficulty: 'Avanzado', calories: 540, timeMinutes: 50, baseServings: 2,
+      tags: ['Italiana', 'Cremoso'],
+      technique: 'risotto cremoso',
+      ingredients: [
+        { icon: 'wheat', label: 'Arroz arborio (o carnaroli)', amount: 200, unit: 'g' },
+        { icon: 'leaf', label: 'Hongos (champiñones o mixtos)', amount: 250, unit: 'g' },
+        { icon: 'onion', label: 'Cebolla', amount: 0.5, unit: 'u' },
+        { icon: 'onion', label: 'Ajo', amount: 1, unit: 'diente' },
+        { icon: 'circle-dot', label: 'Caldo de verduras caliente', amount: 900, unit: 'ml' },
+        { icon: 'circle-dot', label: 'Vino blanco (opcional)', amount: 80, unit: 'ml' },
+        { icon: 'milk', label: 'Mantequilla', amount: 30, unit: 'g' },
+        { icon: 'milk', label: 'Queso parmesano rallado', amount: 40, unit: 'g' },
+        { icon: 'circle-dot', label: 'Aceite de oliva', amount: 2, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Sal y pimienta', amount: 1, unit: 'al gusto' }
+      ],
+      steps: [
+        { title: 'Prepara el caldo', description: 'Pon el caldo en una olla aparte y mantenlo caliente a fuego muy bajo durante toda la receta: agregarlo frío corta la cocción del arroz y alarga todo.', waitSeconds: 0 },
+        { title: 'Saltea los hongos', description: 'Limpia los hongos con un paño (sin lavarlos, absorben agua) y córtalos en láminas. En una sartén aparte, saltéalos a fuego alto con 1 cucharada de aceite 4-5 minutos hasta que doren y suelten el agua; retira y reserva.', waitSeconds: 300 },
+        { title: 'Sofríe la base', description: 'En una olla ancha y de fondo grueso, calienta el aceite y la mitad de la mantequilla a fuego medio. Pica la cebolla y el ajo bien finos y sofríe 4-5 minutos hasta que la cebolla esté transparente, sin dorar.', waitSeconds: 300 },
+        { title: 'Nacara el arroz', description: 'Sube el fuego a medio-alto, agrega el arroz seco (sin lavar) y revuelve 2 minutos hasta que los bordes se vean translúcidos y el grano suene "vidrioso" al moverlo. Este paso sella el grano para que no se pase.', waitSeconds: 120 },
+        { title: 'Desglasa con vino', description: 'Si usas vino, viértelo ahora y revuelve hasta que se evapore casi por completo (huele: cuando ya no pica a alcohol, está listo).', waitSeconds: 90 },
+        { title: 'Cocina de a cucharones', description: 'Agrega un cucharón de caldo caliente y revuelve casi sin parar a fuego medio hasta que el líquido se absorba. Repite cucharón por cucharón (no eches todo junto) durante 18-20 minutos: esto libera el almidón y da la cremosidad típica del risotto.', waitSeconds: 1080 },
+        { title: 'Comprueba el punto', description: 'Prueba un grano: debe estar cocido pero con un centro apenas firme ("al dente"), y la mezcla debe quedar suelta, tipo ola, no seca ni pastosa. Ajusta con más caldo si hace falta.', waitSeconds: 0 },
+        { title: 'Mantecatura final', description: 'Apaga el fuego, incorpora los hongos reservados, el resto de la mantequilla fría y el parmesano. Bate con fuerza fuera del fuego 30 segundos hasta que quede brillante y cremoso. Sal y pimienta al gusto, y sirve de inmediato.', waitSeconds: 0 }
+      ]
+    },
+    {
+      _meal: ['almuerzo'], _spicy: true, _fruit: true,
+      _kw: ['ceviche', 'peruano', 'pescado', 'limon', 'crudo', 'mariscos', 'fresco'],
+      title: 'Ceviche peruano clásico',
+      difficulty: 'Intermedio', calories: 260, timeMinutes: 30, baseServings: 2,
+      tags: ['Peruana', 'Sin cocción'],
+      technique: 'curado en cítrico',
+      ingredients: [
+        { icon: 'fish', label: 'Filete de pescado blanco bien fresco', amount: 400, unit: 'g' },
+        { icon: 'citrus', label: 'Limones (jugo)', amount: 8, unit: 'u' },
+        { icon: 'onion', label: 'Cebolla morada', amount: 1, unit: 'u' },
+        { icon: 'circle-dot', label: 'Ají limo o chile picante', amount: 1, unit: 'u' },
+        { icon: 'leaf', label: 'Cilantro', amount: 1, unit: 'puñado' },
+        { icon: 'circle-dot', label: 'Camote o choclo (opcional, para servir)', amount: 1, unit: 'u' },
+        { icon: 'circle-dot', label: 'Sal', amount: 1, unit: 'cdta' }
+      ],
+      steps: [
+        { title: 'Elige bien el pescado', description: 'Usa SIEMPRE pescado blanco muy fresco (idealmente comprado el mismo día, dile al pescadero que es para ceviche). No sirve congelado de baja calidad: el resultado depende de esto más que de cualquier otro paso.', waitSeconds: 0 },
+        { title: 'Corta el pescado', description: 'Con un cuchillo bien afilado, corta el pescado en cubos parejos de ~2 cm. Un corte parejo asegura que el limón lo cure de forma uniforme.', waitSeconds: 0 },
+        { title: 'Prepara la cebolla', description: 'Corta la cebolla morada en pluma bien fina. Enjuágala bajo agua fría y escúrrela: así pierde el picor fuerte y queda crocante sin amargar el plato.', waitSeconds: 0 },
+        { title: 'Exprime el limón', description: 'Exprime los limones (evita que caigan semillas) hasta juntar suficiente jugo para cubrir el pescado. Prueba el jugo: no debe estar amargo (si exprimiste muy fuerte, sale amargo de la cáscara).', waitSeconds: 0 },
+        { title: 'Cura el pescado', description: 'En un bol (no metálico, para que no reaccione con el ácido), pon el pescado, sal y el ají picado bien fino. Vierte el jugo de limón hasta cubrir. Mezcla suave y deja reposar 5-8 minutos: el pescado se va poniendo opaco y "cocido" por el ácido, no por calor.', waitSeconds: 360 },
+        { title: 'Comprueba el punto', description: 'El pescado está listo cuando se ve blanco y opaco por fuera pero sigue jugoso por dentro (no lo dejes más de 10-15 minutos o se pone gomoso). En ese momento agrega la cebolla y el cilantro picado, mezcla suave.', waitSeconds: 0 },
+        { title: 'Sirve de inmediato', description: 'Sirve enseguida en un plato hondo con un poco del jugo (el "leche de tigre") y, si quieres, acompaña con camote o choclo cocido al lado, como se hace tradicionalmente.', waitSeconds: 0 }
+      ]
+    },
+    {
+      _meal: ['cena'], _spicy: false, _fruit: false,
+      _kw: ['costillas', 'cerdo', 'bbq', 'barbacoa', 'parrilla', 'lento', 'americana'],
+      title: 'Costillas de cerdo a fuego lento con BBQ',
+      difficulty: 'Avanzado', calories: 680, timeMinutes: 180, baseServings: 2,
+      tags: ['Americana', 'Parrilla'],
+      technique: 'cocción lenta al horno',
+      ingredients: [
+        { icon: 'drumstick', label: 'Costillar de cerdo', amount: 1, unit: 'u' },
+        { icon: 'circle-dot', label: 'Pimentón (paprika)', amount: 2, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Azúcar morena', amount: 2, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Comino en polvo', amount: 1, unit: 'cdta' },
+        { icon: 'circle-dot', label: 'Ajo en polvo', amount: 1, unit: 'cdta' },
+        { icon: 'circle-dot', label: 'Sal y pimienta', amount: 1, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Salsa BBQ', amount: 200, unit: 'ml' }
+      ],
+      steps: [
+        { title: 'Retira la membrana', description: 'En la cara de hueso del costillar hay una membrana blanca y brillante: despégala de una esquina con un cuchillo romo y tira con un paño para quitarla entera. Si se queda, las costillas salen menos tiernas y el humo/condimento no penetra igual.', waitSeconds: 0 },
+        { title: 'Sazona (dry rub)', description: 'Mezcla el pimentón, azúcar morena, comino, ajo en polvo, sal y pimienta. Frota la mezcla por todo el costillar, por ambos lados, presionando para que se pegue bien.', waitSeconds: 0 },
+        { title: 'Reposa en frío', description: 'Envuelve el costillar en film y refrigera al menos 1 hora (idealmente toda la noche): el condimento penetra la carne y mejora mucho el sabor final.', waitSeconds: 3600 },
+        { title: 'Precalienta el horno', description: 'Saca las costillas de la heladera 20-30 minutos antes de cocinar (que no entren heladas). Precalienta el horno a 150 °C, para una cocción lenta y pareja.', waitSeconds: 600 },
+        { title: 'Hornea tapado', description: 'Envuelve el costillar en papel aluminio bien cerrado (que no escape el vapor) y hornea 2 a 2,5 horas. Este vapor atrapado es lo que ablanda la carne hasta que se despega casi sola del hueso.', waitSeconds: 8100 },
+        { title: 'Comprueba el punto', description: 'Abre con cuidado (sale vapor caliente) y pincha entre los huesos con un tenedor: debe entrar casi sin resistencia. Si todavía está firme, vuelve a tapar y dale 20-30 minutos más.', waitSeconds: 0 },
+        { title: 'Glasea y dora', description: 'Destapa, sube el horno a 220 °C (o usa el grill), pinta generosamente con salsa BBQ por ambos lados y hornea 10-15 minutos más sin tapar, hasta que la salsa esté pegajosa y con manchas oscuras (sin quemarse).', waitSeconds: 900 },
+        { title: 'Reposa y corta', description: 'Deja reposar 5 minutos antes de cortar entre hueso y hueso: así los jugos se redistribuyen y no se pierden al cortar. Sirve con más salsa BBQ aparte.', waitSeconds: 300 }
+      ]
+    },
+    {
+      _meal: ['almuerzo', 'snack'], _spicy: false, _fruit: false,
+      _kw: ['empanadas', 'carne', 'horno', 'argentina', 'masa', 'relleno'],
+      title: 'Empanadas de carne al horno',
+      difficulty: 'Intermedio', calories: 310, timeMinutes: 70, baseServings: 4,
+      tags: ['Argentina', 'Al horno'],
+      technique: 'armado y repulgue',
+      ingredients: [
+        { icon: 'wheat', label: 'Tapas para empanadas', amount: 12, unit: 'u' },
+        { icon: 'beef', label: 'Carne molida', amount: 400, unit: 'g' },
+        { icon: 'onion', label: 'Cebolla', amount: 2, unit: 'u' },
+        { icon: 'circle-dot', label: 'Pimentón (paprika)', amount: 1, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Comino en polvo', amount: 1, unit: 'cdta' },
+        { icon: 'egg', label: 'Huevos duros', amount: 2, unit: 'u' },
+        { icon: 'leaf', label: 'Aceitunas verdes', amount: 12, unit: 'u' },
+        { icon: 'egg', label: 'Huevo para pintar', amount: 1, unit: 'u' },
+        { icon: 'circle-dot', label: 'Aceite', amount: 2, unit: 'cda' },
+        { icon: 'circle-dot', label: 'Sal', amount: 1, unit: 'al gusto' }
+      ],
+      steps: [
+        { title: 'Pica la cebolla fina', description: 'Corta la cebolla en cubos muy pequeños (~3-4 mm): en el relleno de empanada la cebolla casi se "derrite", así que cuanto más pareja y fina, mejor queda.', waitSeconds: 0 },
+        { title: 'Pocha la cebolla', description: 'En una sartén amplia, calienta el aceite a fuego bajo y cocina la cebolla 12-15 minutos tapada, revolviendo cada tanto, hasta que quede muy blanda y transparente pero sin dorar (este paso lento es clave para que el relleno no quede seco).', waitSeconds: 900 },
+        { title: 'Agrega la carne', description: 'Sube a fuego medio, añade la carne molida y desármala bien con la cuchara. Cocina 8-10 minutos hasta que pierda el color rosado. Si suelta mucho líquido, cuela el exceso (un relleno muy húmedo rompe la tapa al hornear).', waitSeconds: 540 },
+        { title: 'Condimenta y enfría', description: 'Agrega pimentón, comino y sal. Mezcla, prueba y ajusta. Pasa el relleno a un bol y déjalo enfriar por completo, idealmente en la heladera 30 minutos: un relleno caliente ablanda la tapa y hace que se pegue mal.', waitSeconds: 1800 },
+        { title: 'Arma las empanadas', description: 'Pica los huevos duros y las aceitunas. Sobre cada tapa (a temperatura ambiente para que no se rompa) pon una cucharada colmada de relleno frío, un poco de huevo duro y media aceituna. Moja el borde con un dedo con agua.', waitSeconds: 0 },
+        { title: 'Cierra con repulgue', description: 'Dobla la tapa por la mitad formando una media luna y presiona el borde para sellar. Para el repulgue, toma un pliegue pequeño del borde y dóblalo sobre sí mismo, repitiendo hacia el otro extremo (si es tu primera vez, alcanza con presionar bien el borde con un tenedor).', waitSeconds: 0 },
+        { title: 'Hornea', description: 'Precalienta el horno a 200 °C. Coloca las empanadas en una bandeja con papel, píntalas con huevo batido (les da el dorado brillante) y hornea 18-20 minutos hasta que estén doradas.', waitSeconds: 1140 }
+      ]
     }
   ];
 
@@ -317,6 +429,20 @@
       }
     }
     if (!pool.length) pool = base;
+
+    // Prefer recipes AT (or as close as possible to) the user's chosen skill
+    // level, instead of treating every allowed difficulty as equally likely.
+    // Without this, an "avanzado" user mostly saw the same easy dishes a
+    // "principiante" would, simply because the catalog has more of those.
+    var bestRank = 0;
+    pool.forEach(function (r) {
+      var rank = DIFFICULTY_RANK[r.difficulty] || 1;
+      if (rank <= maxDifficulty && rank > bestRank) bestRank = rank;
+    });
+    if (bestRank) {
+      var atLevel = pool.filter(function (r) { return (DIFFICULTY_RANK[r.difficulty] || 1) === bestRank; });
+      if (atLevel.length) pool = atLevel;
+    }
 
     // Avoid repeating a recipe the caller already showed recently (e.g. "otra")
     // when possible, not just the very last one served from this module.
