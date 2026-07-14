@@ -228,7 +228,11 @@
       '- Fruta en la receta: ' + (p.fruit ? 'permitida' : 'NO incluir fruta como ingrediente') + '.',
       '- Formatos favoritos: ' + p.formats.join(', ') + '.',
       '- Cocinas favoritas: ' + p.cuisines.join(', ') + '.',
-      '- Nivel de habilidad: ' + p.skill + ' (pasos claros, trucos prácticos, sin jerga de chef si es principiante).'
+      '- Nivel de habilidad: ' + p.skill + '. El campo "difficulty" DEBE ser coherente con esto: ' +
+        (p.skill === 'principiante' ? 'usa SIEMPRE "Fácil" (nada de técnicas avanzadas, ni pasos simultáneos, ni ingredientes difíciles de conseguir).'
+          : p.skill === 'intermedio' ? 'usa "Fácil" o "Intermedio" (evita técnicas que requieran mucha práctica, como flambear, hacer masas laminadas o trabajar con precisión de repostería).'
+          : 'puedes usar "Fácil", "Intermedio" o "Avanzado" según lo que pida el plato.') +
+        ' Pasos claros, trucos prácticos, sin jerga de chef si es principiante.'
     ];
     if (craving) {
       lines.push('Pedido puntual del usuario para HOY: "' + craving + '". Tiene PRIORIDAD sobre la elección de formato y cocina: respétalo aunque implique un formato o una cocina fuera de las favoritas. De todas formas, respeta SIEMPRE lo de picante, fruta y nivel de habilidad.');
