@@ -239,6 +239,12 @@
     }
   ];
 
+  // Ranks a recipe's difficulty against the user's chosen skill level, so a
+  // "principiante" never gets served an "Intermedio"/"Avanzado" dish from the
+  // free catalog (a beginner asked for beginner-friendly recipes on purpose).
+  var DIFFICULTY_RANK = { 'Fácil': 1, 'Intermedio': 2, 'Avanzado': 3 };
+  var SKILL_MAX_DIFFICULTY = { principiante: 1, intermedio: 2, avanzado: 3 };
+
   function norm(s) {
     return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
@@ -271,6 +277,9 @@
     // Hard preferences: never break these.
     if (prefs.spicy === false) base = base.filter(function (r) { return !r._spicy; });
     if (prefs.fruit === false) base = base.filter(function (r) { return !r._fruit; });
+    var maxDifficulty = SKILL_MAX_DIFFICULTY[prefs.skill] || SKILL_MAX_DIFFICULTY.principiante;
+    var bySkill = base.filter(function (r) { return (DIFFICULTY_RANK[r.difficulty] || 1) <= maxDifficulty; });
+    if (bySkill.length) base = bySkill;
     if (!base.length) base = RECIPES.slice();
 
     var pool = base.slice();
