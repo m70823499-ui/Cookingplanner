@@ -68,7 +68,18 @@
   function scaledQty(amount, unit, servings, baseServings) {
     var base = baseServings > 0 ? baseServings : 1;
     var scaled = (Number(amount) || 0) * (servings / base);
-    var rounded = Math.round(scaled * 4) / 4;
+    var rounded;
+    if (scaled >= 10) {
+      // Cantidades a granel (gramos, ml, etc.): redondea a un número entero
+      // (o al múltiplo de 5 más cercano si es grande) en vez de a cuartos,
+      // que quedaba en decimales poco prácticos como "466.75 ml".
+      var step = scaled >= 100 ? 5 : 1;
+      rounded = Math.round(scaled / step) * step;
+    } else {
+      // Cantidades chicas (tazas, cucharadas, piezas): redondea al cuarto
+      // más cercano, que es una medida práctica en la cocina.
+      rounded = Math.round(scaled * 4) / 4;
+    }
     var trimmed = (Math.round(rounded * 100) / 100).toString();
     return unit ? (trimmed + ' ' + unit) : trimmed;
   }
@@ -233,7 +244,7 @@
       '"technique": string (la técnica clave a dominar en esta receta, en 2 a 5 palabras, ej. "risotto cremoso", "sofrito", "masa de pizza"), ' +
       '"ingredients": [{"icon": string (uno de: ' + ICON_WHITELIST.join(',') + '), "label": string, "amount": number, "unit": string}], ' +
       '"steps": [{"title": string (nombre corto del paso), "description": string (instrucción detallada, clara y autocontenida: el cómo, el fuego, el tiempo y la señal a buscar; sin jerga), "waitSeconds": number (0 si el paso no implica espera ni cocción; si implica, poné los segundos reales de esa espera/cocción)}]}');
-    lines.push('De 5 a 9 ingredientes y de 5 a 12 pasos, cada paso claro y completo. baseServings entre 2 y 4. Usa español neutro (sin voseo, sin modismos regionales).');
+    lines.push('De 5 a 9 ingredientes y de 5 a 12 pasos, cada paso claro y completo. baseServings SIEMPRE 2 (calcula todas las cantidades de "amount" para 2 personas). Usa español neutro (sin voseo, sin modismos regionales).');
     return lines.join('\n');
   }
   function parseRecipe(text) {
@@ -249,7 +260,7 @@
       var text = await window.CookingAPI.complete(buildPrompt());
       var data = parseRecipe(text);
       var baseServings = Math.max(1, Math.round(data.baseServings) || 2);
-      setState({ recipe: data, baseServings: baseServings, servings: baseServings, status: 'ready', checked: {}, timers: {}, recipeNote: '' });
+      setState({ recipe: data, baseServings: baseServings, servings: 2, status: 'ready', checked: {}, timers: {}, recipeNote: '' });
     } catch (e) {
       if (!isRetry) { generateRecipe(true); return; }
       // La API falló (sin clave, sin saldo o sin conexión): en vez de mostrar
@@ -271,7 +282,7 @@
           var note = (state.craving && state.craving.trim() && !picked.matchedCraving)
             ? 'El recetario gratis no tiene "' + state.craving.trim() + '" todavía, así que te sugerimos esta receta. Activa la IA gratuita (Gemini) para pedir justo lo que se te antoje.'
             : '';
-          setState({ recipe: local, baseServings: lb, servings: lb, status: 'ready', checked: {}, timers: {}, recipeNote: note });
+          setState({ recipe: local, baseServings: lb, servings: 2, status: 'ready', checked: {}, timers: {}, recipeNote: note });
           return;
         }
       }
@@ -332,7 +343,7 @@
   // Open a recipe object in the interactive view (adjustable servings + timers).
   function openRecipeObject(recipe, source) {
     var base = Math.max(1, Math.round(recipe.baseServings) || 2);
-    setState({ recipe: recipe, baseServings: base, servings: base, status: 'ready', checked: {}, timers: {}, view: 'recipe', recipeSource: source, justCopied: false });
+    setState({ recipe: recipe, baseServings: base, servings: 2, status: 'ready', checked: {}, timers: {}, view: 'recipe', recipeSource: source, justCopied: false });
   }
 
   // --- shopping list: copy the (scaled) ingredients to the clipboard ---
