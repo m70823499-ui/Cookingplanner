@@ -13,14 +13,32 @@
     { value: 'sopas', label: 'Sopas', icon: 'utensils' },
     { value: 'mariscos', label: 'Mariscos', icon: 'shrimp' },
     { value: 'arroces', label: 'Arroces', icon: 'leaf' },
-    { value: 'comfort food', label: 'Comfort food', icon: 'heart' }
+    { value: 'comfort food', label: 'Comfort food', icon: 'heart' },
+    { value: 'ensaladas', label: 'Ensaladas', icon: 'carrot' },
+    { value: 'parrilla', label: 'Parrilla', icon: 'flame' },
+    { value: 'panadería y horneados', label: 'Panadería y horneados', icon: 'cookie' },
+    { value: 'salteados y wok', label: 'Salteados y wok', icon: 'chef-hat' },
+    { value: 'guisos y estofados', label: 'Guisos y estofados', icon: 'drumstick' },
+    { value: 'sándwiches', label: 'Sándwiches', icon: 'egg' },
+    { value: 'pizza', label: 'Pizza', icon: 'circle-dot' },
+    { value: 'postres', label: 'Postres', icon: 'candy' },
+    { value: 'vegetariano', label: 'Vegetariano', icon: 'onion' }
   ];
   var CUISINES = [
     { value: 'italiana', label: 'Italiana', icon: 'wheat' },
     { value: 'mexicana', label: 'Mexicana', icon: 'sparkles' },
     { value: 'asiática', label: 'Asiática', icon: 'fish' },
     { value: 'mediterránea', label: 'Mediterránea', icon: 'leaf' },
-    { value: 'americana', label: 'Americana', icon: 'flame' }
+    { value: 'americana', label: 'Americana', icon: 'flame' },
+    { value: 'peruana', label: 'Peruana', icon: 'shrimp' },
+    { value: 'argentina', label: 'Argentina', icon: 'beef' },
+    { value: 'india', label: 'India', icon: 'flame' },
+    { value: 'francesa', label: 'Francesa', icon: 'cookie' },
+    { value: 'española', label: 'Española', icon: 'onion' },
+    { value: 'tailandesa', label: 'Tailandesa', icon: 'chef-hat' },
+    { value: 'japonesa', label: 'Japonesa', icon: 'fish' },
+    { value: 'china', label: 'China', icon: 'utensils' },
+    { value: 'árabe', label: 'Árabe', icon: 'carrot' }
   ];
   var SKILLS = [
     { value: 'principiante', label: 'Principiante' },
